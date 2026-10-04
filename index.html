@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mini Apps</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@600&display=swap">
+<style>
+/* Layout: a single shelf of tool cards on the same cutting mat as the apps */
+:root{
+  --bg:#e9ece6; --panel:#f8f9f5; --ink:#17211d; --muted:#5a6962; --line:#d2d8d0;
+  --mat:#1f4a3d; --mat-grid:rgba(255,255,255,.07); --mat-grid2:rgba(255,255,255,.16); --accent:#e2560b;
+  --f-display:"Unbounded","Arial Black",system-ui,sans-serif; --f-body:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root{ --bg:#0f1513; --panel:#151e1b; --ink:#e6ebe7; --muted:#93a39b; --line:#2a3732; --mat:#173a30; --accent:#ff7a2e; color-scheme:dark }}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--f-body);padding-inline:16px;padding-block:28px 48px}
+.wrap{max-width:980px;margin:0 auto;display:grid;gap:22px}
+header{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline}
+h1{font:700 clamp(26px,5vw,40px)/1.05 var(--f-display);margin:0}
+header p{margin:0;color:var(--muted);flex-basis:100%;max-width:60ch}
+.lang{margin-left:auto;display:flex;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px;gap:2px}
+.lang button{border:0;background:transparent;color:var(--muted);font:600 12px var(--f-mono);letter-spacing:.06em;padding:5px 9px;border-radius:6px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.mat{background-color:var(--mat);background-image:linear-gradient(var(--mat-grid2) 1px,transparent 1px),linear-gradient(90deg,var(--mat-grid2) 1px,transparent 1px),linear-gradient(var(--mat-grid) 1px,transparent 1px),linear-gradient(90deg,var(--mat-grid) 1px,transparent 1px);
+  background-size:100px 100px,100px 100px,20px 20px,20px 20px;border-radius:14px;padding:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
+a.card{display:grid;gap:10px;background:#fbfbf7;color:#17211d;text-decoration:none;border-radius:8px;padding:16px;box-shadow:0 6px 16px rgba(0,0,0,.28);transition:transform .15s}
+a.card:hover{transform:translateY(-2px)} a.card:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+a.card svg{width:100%;height:auto;aspect-ratio:1.6;background:#eef1ec;border-radius:6px}
+a.card h2{font:700 17px/1.2 var(--f-display);margin:0}
+a.card p{margin:0;font-size:14.5px;color:#4b5a53}
+a.card span{font:600 12px var(--f-mono);color:var(--accent);letter-spacing:.04em}
+footer{color:var(--muted);font-size:13.5px}
+@media (prefers-reduced-motion: reduce){a.card{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 data-i18n="title"></h1>
+    <div class="lang" role="group" aria-label="Language"><button data-lang="en" aria-pressed="true">EN</button><button data-lang="ru" aria-pressed="false">RU</button></div>
+    <p data-i18n="lead"></p>
+  </header>
+  <main class="mat">
+    <a class="card" href="spin-stencil/">
+      <svg viewBox="0 0 160 100" aria-hidden="true">
+        <circle cx="80" cy="50" r="40" fill="#fff" stroke="#17211d" stroke-width="1"/>
+        <g fill="#9ccbff" stroke="#17211d" stroke-width=".8">
+          <path d="M62 30q8-6 16-3l-2 5q-6-2-11 2z"/><path d="M95 38q6 6 4 14l-5-1q1-6-3-10z"/>
+          <path d="M70 66q8 5 17 2l1 5q-10 3-20-2z"/><path d="M55 48q-1-7 3-12l4 3q-3 4-2 9z"/>
+          <path d="M84 20h7l-1 5h-6z"/><path d="M100 64q4-3 5-8l5 1q-1 7-7 11z"/>
+        </g>
+        <circle cx="80" cy="50" r="1.6" fill="#17211d"/>
+        <path d="M80 6l3 5h-6z" fill="#e2560b"/>
+        <g font-family="Arial" font-size="5" font-weight="700" fill="#17211d"><text x="66" y="38">3</text><text x="98" y="49">7</text><text x="76" y="62">12</text><text x="60" y="46">5</text></g>
+      </svg>
+      <span>spin-stencil</span>
+      <h2 data-i18n="ssTitle"></h2>
+      <p data-i18n="ssText"></p>
+    </a>
+  </main>
+  <footer data-i18n="foot"></footer>
+</div>
+<script>
+const I18N={
+  en:{ doc:'Mini Apps', title:'Mini Apps', lead:'Small single-page tools. Each one is one HTML file that runs in the browser, with nothing to install.',
+    ssTitle:'Spin Stencil', ssText:'Turns a picture into a rotating colouring stencil: a disk with numbered windows and a base sheet with marks. PDF and SVG for printing, hand cutting or a laser.',
+    foot:'Open source. Every app works offline once loaded.' },
+  ru:{ doc:'Мини-приложения', title:'Мини-приложения', lead:'Небольшие одностраничные инструменты. Каждый — один HTML-файл, работает в браузере, ничего не нужно ставить.',
+    ssTitle:'Поворотный трафарет', ssText:'Превращает картинку в поворотную раскраску: диск с пронумерованными окнами и основу с метками. PDF и SVG для печати, ручной резки или лазера.',
+    foot:'Открытый код. Загруженное приложение работает и без интернета.' }
+};
+let LANG='en'; try{ const v=localStorage.getItem('spinstencil-lang'); if(v==='ru'||v==='en') LANG=v; }catch(e){}
+function apply(){ document.documentElement.lang=LANG; document.title=I18N[LANG].doc;
+  document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=I18N[LANG][el.dataset.i18n]);
+  document.querySelectorAll('.lang button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.lang===LANG)); }
+document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>{ LANG=b.dataset.lang; try{localStorage.setItem('spinstencil-lang',LANG);}catch(e){} apply(); });
+apply();
+</script>
+</body>
+</html>
