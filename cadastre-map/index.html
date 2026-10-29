@@ -366,7 +366,7 @@ let S={base:'garysh',dists:[166,176],on:{},op:{},view:[53.2144,63.6246,13]};
 EGKN.forEach(l=>{S.on[l.id]=!!l.on;S.op[l.id]=l.op??0.9});
 try{const s=JSON.parse(localStorage.getItem(LS)||'null');if(s)S=Object.assign(S,s,{on:Object.assign(S.on,s.on||{}),op:Object.assign(S.op,s.op||{})});}catch(e){}
 const save=()=>{try{const c=map.getCenter();S.view=[+c.lat.toFixed(5),+c.lng.toFixed(5),map.getZoom()];localStorage.setItem(LS,JSON.stringify(S))}catch(e){}};
-const DIST={};DISTRICTS.forEach(([reg,ds])=>ds.forEach(([id,n,srs])=>DIST[id]={id,name:n,reg,srs}));
+const DIST={};DISTRICTS.forEach(([reg,ds])=>ds.forEach(([id,n,srs])=>DIST[id]={id,name:n,reg,srs:qazSrs(srs)}));
 
 // ---------------------------------------------------------------- geodesy
 function utm(lat,lon,zoneIn){
@@ -400,13 +400,28 @@ let baseLayer=null;const overlay={};
 
 // District layers of the EGKN render only in the district's own UTM zone, so each tile is
 // requested in UTM and warped onto the map tile with an affine transform.
+
+// EGKN moved to QazTRF-23 / Gauss-Kruger (EPSG:10942-10949, GRS80, k=1) in October 2026.
+function tmFwd(lat,lon,lon0deg,k0,x0){
+  const a=6378137,f=1/298.257222101,e2=f*(2-f),ep2=e2/(1-e2),l0=lon0deg*Math.PI/180;
+  const p=lat*Math.PI/180,l=lon*Math.PI/180,N=a/Math.sqrt(1-e2*Math.sin(p)**2),T=Math.tan(p)**2,C=ep2*Math.cos(p)**2,A=Math.cos(p)*(l-l0);
+  const M=a*((1-e2/4-3*e2*e2/64-5*e2**3/256)*p-(3*e2/8+3*e2*e2/32+45*e2**3/1024)*Math.sin(2*p)+(15*e2*e2/256+45*e2**3/1024)*Math.sin(4*p)-(35*e2**3/3072)*Math.sin(6*p));
+  return [x0+k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T*T+72*C-58*ep2)*A**5/120),
+          k0*(M+N*Math.tan(p)*(A*A/2+(5-T+9*C+4*C*C)*A**4/24+(61-58*T+T*T+600*C-330*ep2)*A**6/720))];
+}
+function qazSrs(s){return (s>=32639&&s<=32645)?10904+(s-32600):s}
+function srsFwd(srs,lat,lon){
+  if(srs>=10942&&srs<=10949){const i=srs-10942;return tmFwd(lat,lon,45+6*i,1,8500000+1e6*i)}
+  const u=utm(lat,lon,srs-32600);return [u.E,u.N];
+}
+
 L.UtmWms=L.GridLayer.extend({
   initialize(url,params,opts){this._url=url;this._p=params;L.setOptions(this,opts);},
   createTile(coords,done){
     const ts=this.getTileSize(),cv=L.DomUtil.create('canvas','leaflet-tile');cv.width=ts.x;cv.height=ts.y;
-    const map=this._map,zone=this.options.srs-32600,nw=coords.scaleBy(ts);
+    const map=this._map,srs=this.options.srs,nw=coords.scaleBy(ts);
     const ll=(dx,dy)=>map.unproject(nw.add([dx,dy]),coords.z);
-    const c=[ll(0,0),ll(ts.x,0),ll(0,ts.y),ll(ts.x,ts.y)].map(p=>{const u=utm(p.lat,p.lng,zone);return [u.E,u.N]});
+    const c=[ll(0,0),ll(ts.x,0),ll(0,ts.y),ll(ts.x,ts.y)].map(p=>srsFwd(srs,p.lat,p.lng));
     const Es=c.map(q=>q[0]),Ns=c.map(q=>q[1]);
     const minE=Math.min(...Es)-2,maxE=Math.max(...Es)+2,minN=Math.min(...Ns)-2,maxN=Math.max(...Ns)+2;
     const W=Math.round(ts.x*1.1),H=Math.round(ts.y*1.1),sx=(maxE-minE)/W,sy=(maxN-minN)/H;
@@ -443,7 +458,7 @@ function buildLayer(l){
   const z=100+(EGKN.length-EGKN.indexOf(l));
   if(!l.dist)return [wms(l.url||GS+'/egkn/wms',l.layers,{pane:'egkn',opacity:S.op[l.id],zIndex:z,styles:l.styles||''})];
   return S.dists.map(d=>new L.UtmWms(GS+'/egkn/wms',{LAYERS:l.layers,STYLES:l.styles||'',viewparams:'district_id:'+d},
-    {pane:'egkn',opacity:S.op[l.id],zIndex:z,srs:(DIST[d]&&DIST[d].srs)||32641,maxZoom:21}));
+    {pane:'egkn',opacity:S.op[l.id],zIndex:z,srs:(DIST[d]&&DIST[d].srs)||10945,maxZoom:21}));
 }
 function refreshLayer(l){(overlay[l.id]||[]).forEach(x=>map.removeLayer(x));overlay[l.id]=[];
   if(S.on[l.id]){overlay[l.id]=buildLayer(l);overlay[l.id].forEach(x=>x.addTo(map));}}
@@ -498,8 +513,8 @@ const cEl=document.getElementById('coords');
 map.on('mousemove',e=>{const {lat,lng}=e.latlng;const u=utm(lat,lng);cEl.textContent=`${lat.toFixed(6)}, ${lng.toFixed(6)}  ·  UTM ${u.zone}N ${u.E.toFixed(1)} ${u.N.toFixed(1)}`});
 function gfiUrl(lat,lon,dist){
   const ids=EGKN.filter(l=>S.on[l.id]&&l.dist).map(l=>l.layers).join(',')||'egkn:u_view';
-  const srs=(DIST[dist]&&DIST[dist].srs)||32641,u=utm(lat,lon,srs-32600),r=15;
-  const bbox=[u.E-r,u.N-r,u.E+r,u.N+r].map(v=>v.toFixed(2)).join(',');
+  const srs=(DIST[dist]&&DIST[dist].srs)||10945,[gE,gN]=srsFwd(srs,lat,lon),r=15;
+  const bbox=[gE-r,gN-r,gE+r,gN+r].map(v=>v.toFixed(2)).join(',');
   return `${GS}/egkn/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&LAYERS=${ids}&QUERY_LAYERS=${ids}&STYLES=&SRS=EPSG:${srs}&BBOX=${bbox}&WIDTH=101&HEIGHT=101&X=50&Y=50&INFO_FORMAT=text/html&FEATURE_COUNT=10&viewparams=district_id:${dist}`;
 }
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
