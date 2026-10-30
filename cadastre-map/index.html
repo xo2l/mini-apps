@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cadastre Map KZ</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-bleed map, operator panel on the right (bottom sheet on phones), coordinate strip bottom-left */
+:root{
+  --bg:#f3f4f0; --panel:#ffffff; --fg:#1b221d; --muted:#667066; --line:#dde1d8; --hover:#eef1ea;
+  --accent:#0b7f86; --accent-ink:#ffffff; --warn:#b8432f;
+  --f-body:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101412; --panel:#171c19; --fg:#e3e8e1; --muted:#97a195; --line:#2b332d; --hover:#202722;
+  --accent:#3fc0c6; --accent-ink:#0d1413; --warn:#ec7b66; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101412; --panel:#171c19; --fg:#e3e8e1; --muted:#97a195; --line:#2b332d; --hover:#202722;
+  --accent:#3fc0c6; --accent-ink:#0d1413; --warn:#ec7b66; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--f-body)}
+[hidden]{display:none!important}
+#map{position:fixed;inset:0;background:#d9dccf}
+.panel{position:fixed;z-index:1000;top:max(12px,env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:max(12px,env(safe-area-inset-bottom,0px));
+  width:340px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);
+  display:flex;flex-direction:column;overflow:hidden}
+.panel.collapsed{bottom:auto}
+.panel.collapsed .body,.panel.collapsed .tabs{display:none}
+.head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.head h1{font:600 15px var(--f-body);margin:0;flex:1;min-width:0}
+.lang{display:flex;border:1px solid var(--line);border-radius:6px;padding:1px;gap:1px}
+.lang button{border:0;background:transparent;color:var(--muted);font:500 11px var(--f-mono);letter-spacing:.05em;padding:3px 6px;border-radius:5px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--fg);color:var(--panel)}
+.iconbtn{border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:6px;padding:4px 9px;font:500 12.5px var(--f-body);cursor:pointer}
+.iconbtn:hover{background:var(--hover)}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;border:0;background:none;color:var(--muted);font:500 13px var(--f-body);padding:8px 6px;cursor:pointer;border-bottom:2px solid transparent}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.body{overflow:auto;padding:4px 0 12px}
+section{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+section:last-child{border-bottom:0}
+h2{font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 2px}
+h3{font:600 12.5px var(--f-body);color:var(--muted);margin:8px 0 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;background:var(--hover);border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;font-size:12.5px}
+.chip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:15px;line-height:1;padding:0 4px}
+.chip button:hover{color:var(--warn)}
+.row{display:flex;gap:6px;align-items:center}
+select,input[type=text]{width:100%;min-width:0;font:13px var(--f-body);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.lyr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;align-items:center;padding:3px 0}
+.lyr label{cursor:pointer;min-width:0}
+.lyr input[type=range]{grid-column:2/4;width:100%;height:16px;accent-color:var(--accent)}
+.lyr .lg{font:12px var(--f-body);color:var(--accent);background:none;border:0;cursor:pointer;padding:0}
+.lyr .legend{grid-column:2/4;max-width:100%;overflow:auto;background:#fff;border-radius:4px;padding:4px}
+.lyr .legend img{display:block;max-width:100%}
+.base{display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer}
+.base small{color:var(--muted)}
+input[type=checkbox],input[type=radio]{accent-color:var(--accent);width:15px;height:15px;margin:0}
+.note{font-size:12.5px;color:var(--muted);margin:0}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:6px;padding:6px 12px;font:500 13px var(--f-body);cursor:pointer;white-space:nowrap}
+.btn.ghost{background:var(--panel);color:var(--fg);border:1px solid var(--line)}
+.btn.ghost:hover{background:var(--hover)}
+.btn.danger{background:var(--panel);color:var(--warn);border:1px solid var(--line)}
+.btnrow{display:flex;flex-wrap:wrap;gap:6px}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,label.btn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tool{border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:6px;padding:7px 8px;font:500 12.5px var(--f-body);cursor:pointer;text-align:left}
+.tool:hover{background:var(--hover)}
+.tool[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.tool.wide{grid-column:1/3}
+.hint{font-size:12.5px;background:var(--hover);border-left:3px solid var(--accent);padding:6px 8px;border-radius:4px}
+.grid2{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:13px;margin:0}
+.grid2 dt{color:var(--muted)} .grid2 dd{margin:0;font-family:var(--f-mono);font-variant-numeric:tabular-nums;text-align:right}
+.nums{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.nums label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted)}
+input[type=number]{width:100%;min-width:0;font:13px var(--f-mono);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 6px}
+.presets{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.presets button{border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:999px;padding:2px 9px;font:12px var(--f-body);cursor:pointer}
+.presets button:hover{background:var(--hover)}
+.shape{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;border:1px solid transparent}
+.shape:hover{background:var(--hover)}
+.shape.sel{border-color:var(--accent)}
+.shape .sw{width:12px;height:12px;border-radius:2px;flex:none}
+.shape .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shape .ar{font:12px var(--f-mono);color:var(--muted)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+.tbl table{border-collapse:collapse;width:100%;font:11.5px var(--f-mono);font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.tbl th{font:500 10.5px var(--f-body);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;background:var(--hover)}
+.warnbox{font-size:12.5px;color:var(--warn)}
+.links{display:flex;flex-direction:column;gap:3px;font-size:13px}
+.links a,.pop a{color:var(--accent)}
+.coords{position:fixed;z-index:1000;left:max(12px,env(safe-area-inset-left,0px));bottom:max(12px,env(safe-area-inset-bottom,0px));
+  background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:4px 10px;font:12px var(--f-mono);font-variant-numeric:tabular-nums;pointer-events:none}
+.leaflet-container{font:13px var(--f-body)}
+.leaflet-container.drawing{cursor:crosshair}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel);color:var(--fg)}
+.pop{display:flex;flex-direction:column;gap:6px;min-width:230px}
+.pop .mono{font:12px var(--f-mono);font-variant-numeric:tabular-nums}
+.vtx{width:12px;height:12px;margin:-6px 0 0 -6px;background:#fff;border:2px solid #ff3b7f;border-radius:50%;box-shadow:0 0 2px #000}
+.mid{margin:0;white-space:nowrap;font:600 11px var(--f-mono);color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,0 0 2px #000;cursor:copy}
+.mid i{display:inline-block;width:8px;height:8px;margin-right:3px;background:#ff3b7f;border:1px solid #fff;vertical-align:-1px}
+.shapelbl{background:rgba(0,0,0,.55);border:0;color:#fff;font:600 12px var(--f-body);box-shadow:none;padding:2px 6px}
+.shapelbl::before,.rulerlbl::before{display:none}
+.rulerlbl{background:#111;color:#ffe14d;border:0;font:600 12px var(--f-mono);box-shadow:none}
+.gpsctl a{display:flex;align-items:center;justify-content:center;width:30px;height:30px;color:#333;background:#fff}
+.gpsctl a.on{color:#2a7fff}
+.gpsnum{background:#00e5ff;color:#012;border:2px solid #fff;border-radius:50%;font:700 11px/16px var(--f-mono);text-align:center;box-shadow:0 0 3px #000}
+.gpsstat{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+@media (max-width:640px){
+  .panel{top:auto;left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));bottom:max(8px,env(safe-area-inset-bottom,0px));width:auto;max-height:62vh}
+  .coords{bottom:auto;top:max(8px,env(safe-area-inset-top,0px));left:56px;right:max(8px,env(safe-area-inset-right,0px));font-size:11px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="coords" id="coords">—</div>
+
+<aside class="panel" id="panel">
+  <div class="head">
+    <h1 data-i18n="title"></h1>
+    <div class="lang" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="ru" aria-pressed="false">RU</button></div>
+    <button class="iconbtn" id="toggle" aria-expanded="true" type="button" data-i18n="collapse"></button>
+  </div>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" id="tabL" aria-selected="true" aria-controls="paneLayers" data-i18n="tabLayers"></button>
+    <button type="button" role="tab" id="tabD" aria-selected="false" aria-controls="paneDraw" data-i18n="tabDraw"></button>
+  </div>
+
+  <div class="body" id="paneLayers" role="tabpanel">
+    <section>
+      <h2 data-i18n="hBase"></h2>
+      <div id="baseList"></div>
+    </section>
+    <section>
+      <h2 data-i18n="hDistricts"></h2>
+      <div class="chips" id="chips"></div>
+      <div class="row">
+        <select id="distSel" data-i18n-aria="addDistAria"></select>
+        <button class="btn" id="addDist" type="button" data-i18n="add"></button>
+      </div>
+      <p class="note" data-i18n="distNote"></p>
+    </section>
+    <section>
+      <h2 data-i18n="hLayers"></h2>
+      <div id="egknList"></div>
+    </section>
+    <section>
+      <h2 data-i18n="hGoto"></h2>
+      <div class="row">
+        <input type="text" id="goto" placeholder="53.2144, 63.6246" data-i18n-aria="gotoAria">
+        <button class="btn" id="gotoBtn" type="button" data-i18n="find"></button>
+      </div>
+      <p class="note" data-i18n="clickNote"></p>
+    </section>
+  </div>
+
+  <div class="body" id="paneDraw" role="tabpanel" hidden>
+    <section>
+      <h2 data-i18n="hTools"></h2>
+      <div class="tools">
+        <button type="button" class="tool" id="tPoly" aria-pressed="false" data-i18n="tPoly"></button>
+        <button type="button" class="tool" id="tRect" aria-pressed="false" data-i18n="tRect"></button>
+        <button type="button" class="tool wide" id="tRuler" aria-pressed="false" data-i18n="tRuler"></button>
+      </div>
+      <div class="hint" id="drawHint" hidden></div>
+      <div id="rectForm" hidden>
+        <div class="nums">
+          <label><span data-i18n="rWidth"></span><input type="number" id="rW" value="30" min="1" step="0.5"></label>
+          <label><span data-i18n="rLength"></span><input type="number" id="rL" value="50" min="1" step="0.5"></label>
+          <label><span data-i18n="rAngle"></span><input type="number" id="rA" value="0" min="-180" max="180" step="1"></label>
+        </div>
+        <div class="presets">
+          <button type="button" data-w="25" data-l="40">0.10 ha · 25×40</button>
+          <button type="button" data-w="30" data-l="50">0.15 ha · 30×50</button>
+          <button type="button" data-w="40" data-l="50">0.20 ha · 40×50</button>
+          <button type="button" data-w="50" data-l="50">0.25 ha · 50×50</button>
+          <button type="button" data-w="50" data-l="100">0.50 ha · 50×100</button>
+          <button type="button" data-w="100" data-l="100">1 ha · 100×100</button>
+        </div>
+        <p class="note" id="rArea" style="margin-top:6px"></p>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-i18n="hShapes"></h2>
+      <div id="shapeList"></div>
+      <div class="btnrow">
+        <label class="btn ghost" style="cursor:pointer"><span data-i18n="import"></span><input type="file" id="impFile" accept=".geojson,.json,.kml" hidden></label>
+      </div>
+    </section>
+
+    <section id="shapeInfo" hidden>
+      <h2 data-i18n="hSelected"></h2>
+      <input type="text" id="sName" data-i18n-aria="nameAria">
+      <select id="sPurpose" data-i18n-aria="purposeAria"></select>
+      <dl class="grid2" id="sStats"></dl>
+      <div class="warnbox" id="sWarn" hidden></div>
+      <label class="note" for="sRot" data-i18n="rotNote"></label>
+      <input type="range" id="sRot" min="-90" max="90" step="0.5" value="0" style="accent-color:var(--accent)">
+      <p class="note" data-i18n="editNote"></p>
+      <div class="btnrow">
+        <button type="button" class="btn" id="sPrint" data-i18n="print"></button>
+        <button type="button" class="btn ghost" id="sCopy" data-i18n="copy"></button>
+        <button type="button" class="btn ghost" id="sZoom" data-i18n="zoom"></button>
+        <button type="button" class="btn danger" id="sDel" data-i18n="del"></button>
+      </div>
+      <div class="links" id="sLinks"></div>
+      <h3 data-i18n="hCatalog"></h3>
+      <div class="tbl"><table id="sTable"></table></div>
+    </section>
+
+    <section>
+      <h2 data-i18n="hExport"></h2>
+      <div class="btnrow">
+        <button type="button" class="btn ghost" id="eKml">KML</button>
+        <button type="button" class="btn ghost" id="eGeo">GeoJSON</button>
+        <button type="button" class="btn ghost" id="eCsv">CSV (Excel)</button>
+      </div>
+      <p class="note" data-i18n="calcNote"></p>
+    </section>
+  </div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const DISTRICTS = [["Акмолинская область",[[1,"Аккольский (01-001)",32642],[2,"Астраханский (01-002)",32642],[3,"Атбасарский (01-003)",32642],[4,"Сандыктауский (01-004)",32642],[5,"Аршалынский (01-005)",32643],[6,"Ерейментауский (01-006)",32643],[7,"Егиндыкольский (01-007)",32642],[8,"Коргалжынский (01-008)",32642],[9,"Буландынский (01-009)",32642],[10,"Целиноградский (01-011)",32642],[11,"Шортандинский (01-012)",32642],[12,"Акколь (01-014)",32642],[257,"Атбасар (01-015)",32642],[13,"Ерейментау (01-016)",32643],[14,"Макинск (01-017)",32642],[15,"Степногорск (01-018)",32642],[16,"Шантобе (01-019)",32642],[17,"Зерендинский (01-160)",32642],[18,"Бурабайский (01-171)",32642],[19,"Биржан Сал (01-172)",32642],[20,"Заозерный (01-173)",32642],[21,"Кокшетау (01-174)",32642],[22,"Степняк (01-176)",32642],[23,"Щучинск (01-177)",32642],[24,"Жаркаинский (01-275)",32642],[25,"Есильский (01-277)",32642],[26,"Жаксынский (01-278)",32642],[27,"Державинск (01-283)",32642],[28,"Есиль (01-284)",32642],[29,"Красногорский (01-285)",32642],[272,"Косшы (01-332)",32642]]],["Актюбинская область",[[30,"Алгинский (02-022)",32640],[31,"Байганинский (02-023)",32640],[32,"Айтекебийский (02-024)",32641],[33,"Иргизский (02-025)",32641],[34,"Мугалжарский (02-027)",32640],[35,"Каргалинский (02-028)",32640],[36,"Мартукский (02-029)",32640],[37,"Темирский (02-031)",32640],[38,"Уилский (02-032)",32640],[39,"Хобдинский (02-033)",32640],[40,"Хромтауский (02-034)",32640],[41,"Шалкарский (02-035)",32640],[42,"Актобе (02-036)",32640],[43,"Алга (02-037)",32640],[44,"Кандыагаш (02-038)",32640],[45,"Темир (02-039)",32640],[46,"Хромтау (02-040)",32640],[47,"Шалкар (02-041)",32640],[48,"Эмба (02-042)",32640]]],["Алматинская область",[[242,"Балхашский (03-043)",32643],[49,"Енбекшиказахский (03-044)",32644],[50,"Жамбылский (03-045)",32643],[51,"Илийский (03-046)",32643],[52,"Карасайский (03-047)",32643],[53,"Райымбекский (03-050)",32644],[54,"Талгарский (03-051)",32643],[55,"Уйгурский (03-052)",32644],[56,"Есик (03-054)",32643],[57,"Қонаев (03-055)",32643],[243,"Каскелен (03-056)",32643],[58,"Талгар (03-057)",32643],[262,"Кегенский (03-323)",32644],[364,"Алатау (03-341)",32643]]],["Атырауская область",[[258,"Жылыойский (04-059)",32639],[73,"Индерский (04-060)",32639],[74,"Исатайский (04-061)",32639],[75,"Кызылкогинский (04-062)",32639],[76,"Курмангазинский (04-063)",32639],[77,"Макатский (04-064)",32639],[78,"Махамбетский (04-065)",32639],[79,"Атырау (04-066)",32639]]],["Восточно-Казахстанская область",[[80,"Глубоковский (05-068)",32644],[81,"Зайсанский (05-069)",32645],[82,"Алтай (05-070)",32645],[83,"Катон-Карагайский (05-071)",32645],[84,"Курчумский (05-072)",32645],[85,"Тарбагатайский (05-078)",32644],[86,"Уланский (05-079)",32644],[87,"Шемонаихинский (05-080)",32644],[88,"Зайсан (05-081)",32645],[89,"Алтай (05-082)",32645],[90,"Риддер (05-083)",32644],[91,"Серебрянск (05-084)",32644],[92,"Усть-Каменогорск (05-085)",32644],[255,"Шемонаиха (05-086)",32644],[266,"Самар (05-334)",32644],[321,"Үлкен Нарын (05-337)",32645],[322,"Марқакөл (05-338)",32645]]],["Жамбылская область",[[103,"Байзакский (06-087)",32642],[104,"Жамбылский (06-088)",32642],[105,"Жуалынский (06-089)",32642],[106,"Кордайский (06-090)",32643],[107,"им.Т.Рыскулова (06-091)",32643],[108,"Меркенский (06-092)",32643],[109,"Мойынкумский (06-093)",32643],[110,"Сарысуский (06-094)",32642],[111,"Таласский (06-095)",32642],[112,"Шуский район (06-096)",32643],[113,"Тараз (06-097)",32642],[114,"Жанатас (06-098)",32642],[115,"Каратау (06-099)",32642],[116,"г. Шу (06-100)",32643]]],["Западно-Казахстанская область",[[117,"Бурлинский (08-114)",32639],[118,"Жангалинский (08-115)",32639],[119,"Жанибекский (08-116)",32639],[120,"Бәйтерек (08-118)",32639],[121,"Казталовский (08-119)",32639],[122,"Каратобинский (08-120)",32639],[123,"Сырымский (08-122)",32639],[124,"Таскалинский (08-124)",32639],[125,"Теректинский (08-125)",32639],[126,"Бокейординский (08-126)",32639],[127,"Акжаикский (08-127)",32639],[128,"Чингирлауский (08-128)",32639],[129,"Аксай (08-129)",32639],[130,"Уральск (08-130)",32639],[131,"Чапаев (08-131)",32639]]],["Карагандинская область",[[132,"Актогайский (09-102)",32643],[135,"Шетский (09-107)",32643],[136,"Балхаш (09-108)",32643],[139,"Приозерск (09-111)",32643],[141,"Каркаралинский (09-133)",32643],[142,"Абайский (09-134)",32643],[143,"Нуринский (09-136)",32642],[144,"Осакаровский (09-137)",32643],[145,"Бухар-Жырауский (09-140)",32643],[146,"Абай (09-141)",32643],[147,"Караганда (09-142)",32643],[148,"Каркаралинск (09-143)",32643],[149,"Сарань (09-144)",32643],[150,"Темиртау (09-145)",32643],[151,"Шахтинск (09-146)",32643]]],["Кызылординская область",[[152,"Аральский (10-147)",32641],[153,"Жалагашский (10-148)",32641],[154,"Жанакорганский (10-149)",32642],[155,"Казалинский (10-150)",32641],[156,"Кармакчинский (10-151)",32641],[157,"Сырдарьинский (10-153)",32641],[158,"Шиелийский (10-154)",32642],[159,"Казалинск (10-155)",32641],[160,"Кызылорда (10-156)",32641]]],["Костанайская область",[[161,"Алтынсаринский (12-178)",32641],[162,"Житикаринский (12-179)",32641],[163,"Камыстинский (12-180)",32641],[164,"Карасуский (12-181)",32641],[165,"Карабалыкский (12-182)",32641],[166,"Костанайский (12-183)",32641],[167,"Узункольский (12-184)",32641],[168,"Мендыкаринский (12-185)",32641],[169,"Наурзумский (12-186)",32641],[170,"Денисовский (12-187)",32641],[171,"Аулиекольский (12-188)",32641],[172,"Беимбета Майлина (12-189)",32641],[173,"Сарыкольский (12-190)",32641],[174,"Федоровский (12-191)",32641],[175,"Житикара (12-192)",32641],[176,"Костанай (12-193)",32641],[177,"Лисаковск (12-194)",32641],[178,"Рудный (12-195)",32641],[179,"Амангельдинский (12-272)",32641],[180,"Жангельдинский (12-276)",32641],[181,"Аркалык (12-282)",32642]]],["Мангистауская область",[[182,"Бейнеуский район (13-196)",32640],[184,"Мангистауский район (13-198)",32639],[185,"Тупкараганский (13-199)",32639],[186,"Актау (13-200)",32639],[187,"Жанаозен (13-201)",32639],[188,"Форт-Шевченко (13-202)",32639],[189,"Мунайлинский район (13-203)",32639]]],["Павлодарская область",[[190,"Актогайский (14-204)",32643],[191,"Баянаульский (14-205)",32643],[192,"Железинский (14-206)",32643],[193,"Иртышский (14-207)",32643],[194,"Тереңкөл (14-208)",32643],[195,"Аққулы (14-209)",32644],[196,"Майский (14-210)",32643],[197,"Павлодарский (14-211)",32643],[198,"Успенский (14-212)",32643],[199,"Щербактинский (14-213)",32644],[200,"Аксу (14-215)",32643],[201,"Иртышск (14-216)",32643],[203,"Павлодар (14-218)",32643],[204,"Экибастуз (14-219)",32643]]],["Северо-Казахстанская область",[[205,"Айыртауский (15-157)",32642],[206,"Уалихановский (15-162)",32642],[207,"Тайыншинский (15-164)",32642],[208,"им. Г. Мусрепова (15-165)",32642],[209,"Акжарский (15-167)",32642],[256,"Тайынша (15-175)",32642],[210,"Кызылжарский (15-220)",32642],[211,"им. Магжана Жумабаева (15-221)",32642],[212,"Жамбылский (15-223)",32642],[213,"Есильский (15-224)",32642],[214,"Мамлютский (15-225)",32642],[215,"Шал Акына (15-228)",32642],[216,"Аккаиынский (15-229)",32642],[217,"Тимирязевский (15-231)",32642],[218,"Булаево (15-232)",32642],[219,"Мамлютка (15-233)",32642],[220,"Петропавловск (15-234)",32642],[221,"Сергеевка (15-235)",32642]]],["Туркестанская область",[[222,"Байдибекский (19-286)",32642],[224,"Мактаральский (19-288)",32642],[225,"Казыгуртский (19-289)",32642],[226,"Ордабасынский (19-293)",32642],[227,"Отырарский (19-294)",32642],[228,"Сайрамский (19-295)",32642],[229,"Сарыагашский (19-296)",32642],[230,"Сузакский (19-297)",32642],[231,"Толебийский (19-298)",32642],[232,"Тюлькубасский (19-300)",32642],[233,"Шардаринский (19-301)",32642],[234,"Арыс (19-302)",32642],[235,"Жетысай (19-303)",32642],[236,"Кентау (19-304)",32642],[237,"Ленгер (19-305)",32642],[238,"Сарыагаш (19-306)",32642],[239,"Туркестан (19-307)",32642],[240,"Шардара (19-308)",32642],[268,"Жетысайский (19-325)",32642],[267,"Келесский (19-326)",32642],[269,"Сауран (19-331)",32642]]],["г. Алматы",[[244,"Алмалинский (20-311)",32643],[245,"Ауезовский (20-312)",32643],[246,"Бостандыкский (20-313)",32643],[247,"Жетысуский (20-314)",32643],[248,"Медеуский (20-315)",32643],[249,"Турксибский (20-317)",32643],[250,"Алатауский (20-321)",32643],[251,"Наурызбайский (20-322)",32643]]],["г. Астана",[[252,"Алматы (21-318)",32642],[253,"Сарыарка (21-319)",32642],[254,"Есиль (21-320)",32642],[264,"Байконыр (21-324)",32642],[271,"Нұра (21-335)",32642],[431,"Сарайшық (21-342)",32642]]],["г. Шымкент",[[241,"Абайский (22-327)",32642],[259,"Аль-Фарабийский (22-328)",32642],[260,"Енбекшинский (22-329)",32642],[261,"Каратау (22-330)",32642],[270,"Тұран (22-336)",32642]]],["Область Абай",[[202,"Курчатов (23-217)",32644],[93,"Абайский (23-236)",32644],[94,"Аягозский (23-239)",32644],[95,"Бескарагайский (23-240)",32644],[96,"Бородулихинский (23-241)",32644],[97,"Жарминский (23-243)",32644],[98,"Кокпектинский (23-244)",32644],[99,"Урджарский (23-248)",32644],[100,"Аягоз (23-251)",32644],[101,"Семей (23-252)",32644],[102,"Шар (23-253)",32644],[265,"Ақсуат (23-333)",32644],[329,"Мақаншы (23-339)",32644],[328,"Жаңасемей (23-340)",32644]]],["Область Жетісу",[[59,"Аксуский (24-254)",32644],[60,"Алакольский (24-255)",32644],[61,"Каратальский (24-259)",32643],[62,"Кербулакский (24-260)",32644],[63,"Коксукский (24-261)",32643],[64,"Панфиловский (24-262)",32644],[65,"Саркандский (24-263)",32644],[66,"Ескельдинский (24-264)",32644],[67,"Жаркент (24-266)",32644],[68,"Сарканд (24-267)",32644],[69,"Талдыкорган (24-268)",32644],[70,"Текели (24-269)",32644],[71,"Уштобе (24-270)",32643],[72,"Ушарал (24-271)",32644]]],["Область Ұлытау",[[133,"Жанааркинский (25-104)",32642],[134,"Улытауский (25-106)",32642],[137,"Жезказган (25-109)",32642],[138,"Каражал (25-110)",32642],[140,"Сатпаев (25-112)",32642]]]];
+
+// ---------------------------------------------------------------- i18n
+const I18N={
+ en:{doc:'Cadastre Map KZ',title:'Cadastre Map KZ',collapse:'Hide',expand:'Layers',tabLayers:'Layers',tabDraw:'Draw & measure',
+  hBase:'Base map',hDistricts:'EGKN districts',addDistAria:'District to add',add:'Add',
+  distNote:'The cadastre serves its layers one district at a time. A city and the district around it are separate districts, so turn on both.',
+  hLayers:'Cadastre layers',hGoto:'Go to point',gotoAria:'Coordinates: latitude, longitude',find:'Go',
+  clickNote:'Click the map for the point coordinates and a link to the cadastre record of the plot under it.',
+  noDist:'No district selected, so plots are not shown.',remove:'Remove',legend:'legend',hideLegend:'hide',noLegend:'No legend',opacity:'Opacity',
+  g_land:'Land plots',g_bound:'Boundaries',g_survey:'Land survey',g_plan:'Urban planning',g_emerg:'Emergencies',
+  l_u:'Registered plots',l_req:'Requested plots',l_free:'Land auctions',l_part:'Plot parts',l_arrest:'Under arrest',l_ned:'Buildings',l_ru:'Land register',l_oz:'Valuation zones',
+  l_uk:'Cadastral blocks',l_ugl:'Farmland',l_pch:'Soil contours',l_rst:'Vegetation contours',l_gpr:'Master plan: red lines',l_gpz:'Master plan: zoning',
+  l_pdpr:'Detailed plan: red lines',l_pdpz:'Detailed plan: zoning',l_water:'Water supply zone',l_electro:'Power supply zone',l_flood:'Flood extent (Emergencies Ministry)',
+  b_garysh:'Garysh Sapary',b_garysh_s:'EGKN satellite',b_gsat:'Google satellite',b_ghyb:'Google hybrid',b_esri:'Esri World Imagery',b_bing:'Bing satellite',b_ysat:'Yandex satellite',b_ymap:'Yandex map',
+  b_2gis:'2GIS',b_osm:'OpenStreetMap',b_geocom:'Map of Kazakhstan',b_geocom_s:'EGKN scheme',b_aero:'Kazgeodesy aerial',b_aero_s:'partial',b_none:'No base map',
+  copyCoords:'Copy coordinates',copied:'Copied',failed:'Could not copy',egknAt:'Cadastre record',addDistFirst:'Add a district to look up records',openYandex:'Open in Yandex Maps',openGoogle:'Open in Google Maps',
+  hTools:'Tools',tPoly:'Plot by points',tRect:'Rectangle by size',tRuler:'Ruler',rWidth:'Width, m',rLength:'Length, m',rAngle:'Rotation, °',
+  hintPoly:'Click the corners of the plot. Finish with a double click, a click on the first point or Enter. Backspace removes the last point, Esc cancels.',
+  hintRect:'Set the size and click the map where the centre of the plot should go.',
+  hintRuler:'Click points to see each segment and the total. Double click or Enter to finish, Esc to clear.',
+  rectArea:(a,p)=>`Area ${a.m} m² = ${a.ha} ha = ${a.sot} sotka. Perimeter ${p} m.`,
+  hShapes:'My plots',import:'Import GeoJSON / KML',empty:'Nothing here yet. Draw a plot by points or place a rectangle of the size you need.',
+  plot:'Plot',hSelected:'Selected plot',nameAria:'Plot name',purposeAria:'Intended use',
+  purposes:['Private household plot (LPH)','Gardening','Individual housing (IZhS)','Dacha','Peasant farm','Other'],
+  area:'Area',perim:'Perimeter',vertices:'Vertices',center:'Centre',
+  selfX:'Sides of the plot cross each other. Move the corners, otherwise the area is wrong.',
+  rotNote:'Rotate around the centre (fixed when you let go)',
+  editNote:'Drag the pink points to move corners. Drag a square on a side to add a corner. Right-click a corner to delete it. Drag the plot itself to move it whole.',
+  print:'Printable plan',copy:'Copy coordinates',zoom:'Show',del:'Delete',delSure:'Delete for sure?',
+  egknCenter:'Cadastre at the plot centre',hCatalog:'Coordinate list (clockwise from the north-west corner)',
+  th:['No.','X (N), m','Y (E), m','Latitude','Longitude','To next, m','Bearing'],
+  hExport:'Export all plots',
+  calcNote:'Area is computed on the WGS 84 ellipsoid through UTM with the zone scale correction. Coordinates are WGS 84 and UTM; a land surveyor converts them to the local system.',
+  popupBlocked:'Allow pop-ups for this page',readFail:'Could not read the file: ',
+  pr:{title:'Land plot plan',use:'Intended use',sub:'approximate plan for an application',area:'Area',perim:'Perimeter',center:'Plot centre',crs:'Coordinate system',
+    crsText:z=>`WGS 84 / UTM zone ${z}N (EPSG:326${z}); X points north, Y points east`,scale:'Scale',scaleText:s=>`about 1:${s} when printed at 100%`,
+    th:['Point','X (N), m','Y (E), m','Latitude','Longitude','Line','Length, m','Bearing'],printBtn:'Print / save as PDF',N:'N',
+    foot:'Area is computed from the coordinates with the projection scale correction. The official plan in the local coordinate system is made by a licensed land surveyor.'},
+  csvHead:['Plot','Use','Area, m2','Area, ha','Perimeter, m','Point','X (N) UTM','Y (E) UTM','UTM zone','Latitude','Longitude','To next, m','Bearing'],
+  kmlDoc:'My plots',ha:'ha',m:'m'},
+ ru:{doc:'Кадастровая карта РК',title:'Кадастровая карта РК',collapse:'Свернуть',expand:'Слои',tabLayers:'Слои',tabDraw:'Рисование и площадь',
+  hBase:'Подложка',hDistricts:'Районы ЕГКН',addDistAria:'Район для добавления',add:'Добавить',
+  distNote:'ЕГКН отдаёт слои по одному району. Город и район рядом с ним — разные районы, включайте оба.',
+  hLayers:'Слои ЕГКН',hGoto:'Перейти к точке',gotoAria:'Координаты: широта, долгота',find:'Найти',
+  clickNote:'Клик по карте — координаты точки и ссылка на сведения ЕГКН об участке под ней.',
+  noDist:'Район не выбран — участки не показываются.',remove:'Убрать',legend:'легенда',hideLegend:'скрыть',noLegend:'Легенды нет',opacity:'Прозрачность',
+  g_land:'Земельные участки',g_bound:'Границы',g_survey:'Обследование',g_plan:'Градостроительство',g_emerg:'ЧС',
+  l_u:'Зарегистрированные',l_req:'Испрашиваемые',l_free:'Земельный аукцион',l_part:'Части ЗУ',l_arrest:'С арестом',l_ned:'Здания и сооружения',l_ru:'Реестр учёта земель',l_oz:'Оценочные зоны',
+  l_uk:'Учётные кварталы',l_ugl:'Сельхозугодья',l_pch:'Почвенные контуры',l_rst:'Геоботанические контуры',l_gpr:'Генплан — красные линии',l_gpz:'Генплан — функциональные зоны',
+  l_pdpr:'ПДП — красные линии',l_pdpz:'ПДП — функциональные зоны',l_water:'Зона водоснабжения',l_electro:'Зона электроснабжения',l_flood:'Паводки по опасному уровню (МЧС)',
+  b_garysh:'Гарыш Сапары',b_garysh_s:'спутник ЕГКН',b_gsat:'Google спутник',b_ghyb:'Google гибрид',b_esri:'Esri World Imagery',b_bing:'Bing спутник',b_ysat:'Яндекс спутник',b_ymap:'Яндекс схема',
+  b_2gis:'2ГИС',b_osm:'OpenStreetMap',b_geocom:'Карта Казахстана',b_geocom_s:'схема ЕГКН',b_aero:'Аэрофото Казгеодезии',b_aero_s:'частично',b_none:'Без подложки',
+  copyCoords:'Скопировать координаты',copied:'Скопировано',failed:'Не удалось скопировать',egknAt:'Сведения ЕГКН',addDistFirst:'Добавьте район, чтобы смотреть сведения',openYandex:'Открыть в Яндекс Картах',openGoogle:'Открыть в Google Maps',
+  hTools:'Инструменты',tPoly:'Участок по точкам',tRect:'Прямоугольник по размерам',tRuler:'Линейка',rWidth:'Ширина, м',rLength:'Длина, м',rAngle:'Поворот, °',
+  hintPoly:'Кликайте по карте углы участка. Закончить — двойной клик, клик по первой точке или Enter. Backspace убирает последнюю точку, Esc — выход.',
+  hintRect:'Задайте размеры и кликните на карте — туда встанет центр участка.',
+  hintRuler:'Кликайте точки — покажу длину каждого отрезка и сумму. Двойной клик или Enter — закончить, Esc — стереть.',
+  rectArea:(a,p)=>`Площадь ${a.m} м² = ${a.ha} га = ${a.sot} сот. Периметр ${p} м.`,
+  hShapes:'Мои участки',import:'Импорт GeoJSON / KML',empty:'Пока пусто. Нарисуйте участок по точкам или поставьте прямоугольник нужного размера.',
+  plot:'Участок',hSelected:'Выбранный участок',nameAria:'Название участка',purposeAria:'Целевое назначение',
+  purposes:['ЛПХ','Садоводство','ИЖС','Дачное строительство','Крестьянское хозяйство','Другое'],
+  area:'Площадь',perim:'Периметр',vertices:'Вершин',center:'Центр',
+  selfX:'Стороны участка пересекаются — поправьте вершины, иначе площадь посчитается неверно.',
+  rotNote:'Повернуть вокруг центра (отпустите — зафиксируется)',
+  editNote:'Тащите розовые точки, чтобы двигать вершины. Квадратик на середине стороны — новая вершина. Правый клик по вершине удаляет её. Перетащите сам участок, чтобы сдвинуть его целиком.',
+  print:'Схема для печати',copy:'Копировать координаты',zoom:'Показать',del:'Удалить',delSure:'Точно удалить?',
+  egknCenter:'Что в ЕГКН в центре участка',hCatalog:'Каталог координат (по часовой стрелке от северо-западного угла)',
+  th:['№','X (N), м','Y (E), м','Широта','Долгота','До след., м','Дир. угол'],
+  hExport:'Экспорт всех участков',
+  calcNote:'Площадь считается на эллипсоиде WGS 84 через UTM с поправкой за масштаб зоны. Координаты — WGS 84 и UTM, землеустроитель переведёт их в местную систему.',
+  popupBlocked:'Разрешите всплывающие окна для этой страницы',readFail:'Не удалось прочитать файл: ',
+  pr:{title:'Схема земельного участка',use:'Целевое назначение',sub:'ориентировочная схема для заявления',area:'Площадь',perim:'Периметр',center:'Центр участка',crs:'Система координат',
+    crsText:z=>`WGS 84 / UTM зона ${z}N (EPSG:326${z}); X — на север, Y — на восток`,scale:'Масштаб',scaleText:s=>`около 1:${s} при печати в 100%`,
+    th:['Точка','X (N), м','Y (E), м','Широта','Долгота','Линия','Длина, м','Дир. угол'],printBtn:'Печать / сохранить в PDF',N:'С',
+    foot:'Площадь вычислена по координатам с поправкой за масштаб проекции. Точная схема и координаты в местной системе (МСК) выполняются лицензированным землеустроителем.'},
+  csvHead:['Участок','Назначение','Площадь, м2','Площадь, га','Периметр, м','Точка','X (N) UTM','Y (E) UTM','Зона UTM','Широта','Долгота','До след., м','Дир. угол'],
+  kmlDoc:'Мои участки',ha:'га',m:'м'}
+};
+let LANG='en'; try{const v=localStorage.getItem('spinstencil-lang'); if(v==='ru'||v==='en') LANG=v;}catch(e){}
+const t=k=>I18N[LANG][k];
+const LOC=()=>LANG==='ru'?'ru-RU':'en-US';
+const fmt=(v,d=2)=>v.toLocaleString(LOC(),{minimumFractionDigits:d,maximumFractionDigits:d});
+
+// ---------------------------------------------------------------- sources
+const GS='https://map.gov4c.kz/geoserver';
+const GGK='https://map.gov4c.kz/ggkgs/wms';
+const MCHS='https://argissrv.gharysh.kz/arcgis/services/MCHS/Extent_pavodki/MapServer/WMSServer';
+
+// Layers in draw order: first in the list is drawn on top.
+const EGKN=[
+  {g:'land', id:'u',      layers:'egkn:u_view', on:true, dist:true},
+  {g:'land', id:'req',    layers:'egkn:reqland_view', on:true, dist:true},
+  {g:'land', id:'free',   layers:'egkn:freelands_view', on:true, dist:true},
+  {g:'land', id:'part',   layers:'egkn:part_view', dist:true},
+  {g:'land', id:'arrest', layers:'egkn:arrest_view', dist:true},
+  {g:'land', id:'ned',    layers:'egkn:ned_view', dist:true},
+  {g:'land', id:'ru',     layers:'egkn:ru_view', dist:true},
+  {g:'land', id:'oz',     layers:'egkn:oz_view', dist:true, op:.6},
+  {g:'bound',id:'uk',     layers:'egkn:uk_view', on:true, dist:true},
+  {g:'survey',id:'ugl',   layers:'egkn:ugl_view,egkn:ugpol_view', dist:true, op:.7},
+  {g:'survey',id:'pch',   layers:'egkn:pch_view', styles:'egkn:pch_label_style', dist:true, op:.7},
+  {g:'survey',id:'rst',   layers:'egkn:rst_view', dist:true, op:.7},
+  {g:'plan', id:'gpr',    url:GGK, layers:'kz:gpreg'},
+  {g:'plan', id:'gpz',    url:GGK, layers:'kz:gpzone', op:.6},
+  {g:'plan', id:'pdpr',   url:GGK, layers:'kz:pdpreg'},
+  {g:'plan', id:'pdpz',   url:GGK, layers:'kz:pdpzone', op:.6},
+  {g:'plan', id:'water',  url:GGK, layers:'kz:invsupplyzonewater', op:.6},
+  {g:'plan', id:'electro',url:GGK, layers:'kz:invsupplyzoneelectro', op:.6},
+  {g:'emerg',id:'flood',  url:MCHS, layers:'0', op:.7, nolegend:true},
+];
+
+const BingLayer=L.TileLayer.extend({
+  getTileUrl(c){let q='';for(let i=c.z;i>0;i--){let d=0;const m=1<<(i-1);if(c.x&m)d++;if(c.y&m)d+=2;q+=d}
+    return `https://ecn.t${(c.x+c.y)%4}.tiles.virtualearth.net/tiles/a${q}.jpeg?g=1`;}
+});
+const wms=(url,layers,o={})=>L.tileLayer.wms(url,Object.assign({layers,format:'image/png',transparent:true,version:'1.1.1',styles:'',maxZoom:21},o));
+const BASES=[
+  {id:'garysh',sub:true,make:()=>wms(GS+'/egkn/wms','egkn:basemap.For_all_Mosaic_KZ',{transparent:false})},
+  {id:'gsat',  make:()=>L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{subdomains:'0123',maxNativeZoom:20,maxZoom:21})},
+  {id:'ghyb',  make:()=>L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&hl='+LANG+'&x={x}&y={y}&z={z}',{subdomains:'0123',maxNativeZoom:20,maxZoom:21})},
+  {id:'esri',  make:()=>L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21})},
+  {id:'bing',  make:()=>new BingLayer('',{maxNativeZoom:19,maxZoom:21})},
+  {id:'ysat',  crs:'3395',make:()=>L.tileLayer('https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&lang=ru_RU',{maxNativeZoom:19,maxZoom:21})},
+  {id:'ymap',  crs:'3395',make:()=>L.tileLayer('https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang='+(LANG==='ru'?'ru_RU':'en_US'),{maxNativeZoom:19,maxZoom:21})},
+  {id:'2gis',  make:()=>L.tileLayer('https://tile{s}.maps.2gis.com/tiles?x={x}&y={y}&z={z}',{subdomains:'0123',maxNativeZoom:18,maxZoom:21})},
+  {id:'osm',   make:()=>L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxNativeZoom:19,maxZoom:21,attribution:'© OpenStreetMap'})},
+  {id:'geocom',sub:true,make:()=>wms(GS+'/base/wms','base:basemap.geocom',{transparent:false})},
+  {id:'aero',  sub:true,make:()=>L.layerGroup([wms(GS+'/base/wms','base:basemap.geocom',{transparent:false}),wms('https://map.gov.kz/geoserver/wms','kz-aero',{format:'image/jpeg',transparent:false})])},
+  {id:'none',  make:()=>L.layerGroup()},
+];
+
+// ---------------------------------------------------------------- state
+const LS='egkn-viewer-v1';
+let S={base:'garysh',dists:[166,176],on:{},op:{},view:[53.2144,63.6246,13]};
+EGKN.forEach(l=>{S.on[l.id]=!!l.on;S.op[l.id]=l.op??0.9});
+try{const s=JSON.parse(localStorage.getItem(LS)||'null');if(s)S=Object.assign(S,s,{on:Object.assign(S.on,s.on||{}),op:Object.assign(S.op,s.op||{})});}catch(e){}
+const save=()=>{try{const c=map.getCenter();S.view=[+c.lat.toFixed(5),+c.lng.toFixed(5),map.getZoom()];localStorage.setItem(LS,JSON.stringify(S))}catch(e){}};
+const DIST={};DISTRICTS.forEach(([reg,ds])=>ds.forEach(([id,n,srs])=>DIST[id]={id,name:n,reg,srs:qazSrs(srs)}));
+
+// ---------------------------------------------------------------- geodesy
+function utm(lat,lon,zoneIn){
+  const zone=zoneIn||Math.floor((lon+180)/6)+1,a=6378137,f=1/298.257223563,k0=.9996,e2=f*(2-f),ep2=e2/(1-e2),l0=((zone-1)*6-180+3)*Math.PI/180;
+  const p=lat*Math.PI/180,l=lon*Math.PI/180,N=a/Math.sqrt(1-e2*Math.sin(p)**2),T=Math.tan(p)**2,C=ep2*Math.cos(p)**2,A=Math.cos(p)*(l-l0);
+  const M=a*((1-e2/4-3*e2*e2/64-5*e2**3/256)*p-(3*e2/8+3*e2*e2/32+45*e2**3/1024)*Math.sin(2*p)+(15*e2*e2/256+45*e2**3/1024)*Math.sin(4*p)-(35*e2**3/3072)*Math.sin(6*p));
+  const E=500000+k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T*T+72*C-58*ep2)*A**5/120);
+  const Nn=k0*(M+N*Math.tan(p)*(A*A/2+(5-T+9*C+4*C*C)*A**4/24+(61-58*T+T*T+600*C-330*ep2)*A**6/720));
+  return {zone,E,N:Nn};
+}
+function utmInv(E,N,zone){
+  const a=6378137,f=1/298.257223563,k0=.9996,e2=f*(2-f),ep2=e2/(1-e2),lon0=((zone-1)*6-180+3)*Math.PI/180;
+  const x=E-500000,M=N/k0,mu=M/(a*(1-e2/4-3*e2*e2/64-5*e2**3/256)),e1=(1-Math.sqrt(1-e2))/(1+Math.sqrt(1-e2));
+  const p1=mu+(3*e1/2-27*e1**3/32)*Math.sin(2*mu)+(21*e1*e1/16-55*e1**4/32)*Math.sin(4*mu)+(151*e1**3/96)*Math.sin(6*mu);
+  const C1=ep2*Math.cos(p1)**2,T1=Math.tan(p1)**2,N1=a/Math.sqrt(1-e2*Math.sin(p1)**2),R1=a*(1-e2)/(1-e2*Math.sin(p1)**2)**1.5,D=x/(N1*k0);
+  const lat=p1-(N1*Math.tan(p1)/R1)*(D*D/2-(5+3*T1+10*C1-4*C1*C1-9*ep2)*D**4/24+(61+90*T1+298*C1+45*T1*T1-252*ep2-3*C1*C1)*D**6/720);
+  const lon=lon0+(D-(1+2*T1+C1)*D**3/6+(5-2*C1+28*T1-3*C1*C1+8*ep2+24*T1*T1)*D**5/120)/Math.cos(p1);
+  return [lat*180/Math.PI,lon*180/Math.PI];
+}
+const zoneOf=ll=>Math.floor((ll[1]+180)/6)+1;
+const kScale=E=>0.9996*(1+((E-500000)**2)/(2*6371000**2));
+const dms=deg=>{deg=(deg%360+360)%360;const d=Math.floor(deg),m0=(deg-d)*60,m=Math.floor(m0),s=Math.round((m0-m)*60);
+  return s===60?`${d}°${String(m+1).padStart(2,'0')}′00″`:`${d}°${String(m).padStart(2,'0')}′${String(s).padStart(2,'0')}″`};
+
+// ---------------------------------------------------------------- map
+const map=L.map('map',{zoomControl:true,maxZoom:21,crs:(BASES.find(b=>b.id===S.base)||{}).crs==='3395'?L.CRS.EPSG3395:L.CRS.EPSG3857}).setView([S.view[0],S.view[1]],S.view[2]);
+L.control.scale({imperial:false,position:'bottomright'}).addTo(map);
+map.createPane('egkn');map.getPane('egkn').style.zIndex=410;
+map.createPane('draw');map.getPane('draw').style.zIndex=460;
+let baseLayer=null;const overlay={};
+
+// District layers of the EGKN render only in the district's own UTM zone, so each tile is
+// requested in UTM and warped onto the map tile with an affine transform.
+
+// EGKN moved to QazTRF-23 / Gauss-Kruger (EPSG:10942-10949, GRS80, k=1) in October 2026.
+function tmFwd(lat,lon,lon0deg,k0,x0){
+  const a=6378137,f=1/298.257222101,e2=f*(2-f),ep2=e2/(1-e2),l0=lon0deg*Math.PI/180;
+  const p=lat*Math.PI/180,l=lon*Math.PI/180,N=a/Math.sqrt(1-e2*Math.sin(p)**2),T=Math.tan(p)**2,C=ep2*Math.cos(p)**2,A=Math.cos(p)*(l-l0);
+  const M=a*((1-e2/4-3*e2*e2/64-5*e2**3/256)*p-(3*e2/8+3*e2*e2/32+45*e2**3/1024)*Math.sin(2*p)+(15*e2*e2/256+45*e2**3/1024)*Math.sin(4*p)-(35*e2**3/3072)*Math.sin(6*p));
+  return [x0+k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T*T+72*C-58*ep2)*A**5/120),
+          k0*(M+N*Math.tan(p)*(A*A/2+(5-T+9*C+4*C*C)*A**4/24+(61-58*T+T*T+600*C-330*ep2)*A**6/720))];
+}
+function qazSrs(s){return (s>=32639&&s<=32645)?10904+(s-32600):s}
+function srsFwd(srs,lat,lon){
+  if(srs>=10942&&srs<=10949){const i=srs-10942;return tmFwd(lat,lon,45+6*i,1,8500000+1e6*i)}
+  const u=utm(lat,lon,srs-32600);return [u.E,u.N];
+}
+
+L.UtmWms=L.GridLayer.extend({
+  initialize(url,params,opts){this._url=url;this._p=params;L.setOptions(this,opts);},
+  createTile(coords,done){
+    const ts=this.getTileSize(),cv=L.DomUtil.create('canvas','leaflet-tile');cv.width=ts.x;cv.height=ts.y;
+    const map=this._map,srs=this.options.srs,nw=coords.scaleBy(ts);
+    const ll=(dx,dy)=>map.unproject(nw.add([dx,dy]),coords.z);
+    const c=[ll(0,0),ll(ts.x,0),ll(0,ts.y),ll(ts.x,ts.y)].map(p=>srsFwd(srs,p.lat,p.lng));
+    const Es=c.map(q=>q[0]),Ns=c.map(q=>q[1]);
+    const minE=Math.min(...Es)-2,maxE=Math.max(...Es)+2,minN=Math.min(...Ns)-2,maxN=Math.max(...Ns)+2;
+    const W=Math.round(ts.x*1.1),H=Math.round(ts.y*1.1),sx=(maxE-minE)/W,sy=(maxN-minN)/H;
+    const [E0,N0]=c[0],dE1=c[1][0]-E0,dN1=c[1][1]-N0,dE2=c[2][0]-E0,dN2=c[2][1]-N0,det=dE1*dN2-dE2*dN1;
+    const M11=ts.x*dN2/det,M12=-ts.x*dE2/det,M21=-ts.y*dN1/det,M22=ts.y*dE1/det;
+    const T=[M11*sx,M21*sx,-M12*sy,-M22*sy,M11*(minE-E0)+M12*(maxN-N0),M21*(minE-E0)+M22*(maxN-N0)];
+    const q=Object.assign({SERVICE:'WMS',VERSION:'1.1.1',REQUEST:'GetMap',FORMAT:'image/png',TRANSPARENT:'true',STYLES:'',
+      SRS:'EPSG:'+this.options.srs,WIDTH:W,HEIGHT:H,BBOX:[minE,minN,maxE,maxN].map(v=>v.toFixed(2)).join(',')},this._p);
+    const img=new Image();
+    img.onload=()=>{const x=cv.getContext('2d');x.setTransform(...T);x.drawImage(img,0,0);done(null,cv)};
+    img.onerror=()=>done(null,cv);
+    img.src=this._url+'?'+Object.entries(q).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');
+    return cv;
+  }
+});
+
+function setBase(id){
+  const b=BASES.find(x=>x.id===id)||BASES[0];S.base=b.id;
+  const crs=b.crs==='3395'?L.CRS.EPSG3395:L.CRS.EPSG3857;
+  if(baseLayer)map.removeLayer(baseLayer);
+  if(map.options.crs!==crs){
+    const c=map.getCenter(),z=map.getZoom();
+    const keep=[];Object.values(overlay).flat().forEach(l=>{map.removeLayer(l)});
+    Object.values(shapeLayers).forEach(l=>{map.removeLayer(l);keep.push(l)});map.removeLayer(editGroup);map.removeLayer(rulerGroup);
+    map.options.crs=crs;map._resetView(c,z,true);
+    Object.values(overlay).flat().forEach(l=>map.addLayer(l));keep.forEach(l=>map.addLayer(l));map.addLayer(editGroup);map.addLayer(rulerGroup);
+    if(selId)drawHandles();
+  }
+  baseLayer=b.make();baseLayer.addTo(map);
+  if(baseLayer.bringToBack)baseLayer.bringToBack();
+  save();
+}
+function buildLayer(l){
+  const z=100+(EGKN.length-EGKN.indexOf(l));
+  if(!l.dist)return [wms(l.url||GS+'/egkn/wms',l.layers,{pane:'egkn',opacity:S.op[l.id],zIndex:z,styles:l.styles||''})];
+  return S.dists.map(d=>new L.UtmWms(GS+'/egkn/wms',{LAYERS:l.layers,STYLES:l.styles||'',viewparams:'district_id:'+d},
+    {pane:'egkn',opacity:S.op[l.id],zIndex:z,srs:(DIST[d]&&DIST[d].srs)||10945,maxZoom:21}));
+}
+function refreshLayer(l){(overlay[l.id]||[]).forEach(x=>map.removeLayer(x));overlay[l.id]=[];
+  if(S.on[l.id]){overlay[l.id]=buildLayer(l);overlay[l.id].forEach(x=>x.addTo(map));}}
+const refreshAll=()=>EGKN.forEach(refreshLayer);
+
+// ---------------------------------------------------------------- panel: districts
+const chips=document.getElementById('chips'),distSel=document.getElementById('distSel');
+DISTRICTS.forEach(([reg,ds])=>{const g=document.createElement('optgroup');g.label=reg;ds.forEach(([id,n])=>{const o=document.createElement('option');o.value=id;o.textContent=n;g.appendChild(o)});distSel.appendChild(g)});
+distSel.value='166';
+function renderChips(){
+  chips.innerHTML='';
+  if(!S.dists.length){const p=document.createElement('p');p.className='note';p.textContent=t('noDist');chips.appendChild(p)}
+  S.dists.forEach(id=>{const c=document.createElement('span');c.className='chip';c.textContent=(DIST[id]?.name||id);
+    const x=document.createElement('button');x.type='button';x.setAttribute('aria-label',t('remove')+' '+(DIST[id]?.name||id));x.textContent='×';
+    x.onclick=()=>{S.dists=S.dists.filter(v=>v!==id);renderChips();refreshAll();save()};c.appendChild(x);chips.appendChild(c)});
+}
+document.getElementById('addDist').onclick=()=>{const id=+distSel.value;if(!S.dists.includes(id)){S.dists.push(id);renderChips();refreshAll();save()}};
+
+// ---------------------------------------------------------------- panel: layers & bases
+function buildEgknList(){
+  const list=document.getElementById('egknList');list.innerHTML='';let lastG='';
+  EGKN.forEach(l=>{
+    if(l.g!==lastG){const h=document.createElement('h3');h.textContent=t('g_'+l.g);list.appendChild(h);lastG=l.g}
+    const row=document.createElement('div');row.className='lyr';
+    const cb=document.createElement('input');cb.type='checkbox';cb.id='l_'+l.id;cb.checked=S.on[l.id];
+    const lb=document.createElement('label');lb.htmlFor=cb.id;lb.textContent=t('l_'+l.id);
+    const lgb=document.createElement('button');lgb.type='button';lgb.className='lg';lgb.textContent=l.nolegend?'':t('legend');
+    const rg=document.createElement('input');rg.type='range';rg.min=0;rg.max=1;rg.step=.05;rg.value=S.op[l.id];rg.id='o_'+l.id;rg.setAttribute('aria-label',t('opacity')+': '+t('l_'+l.id));rg.hidden=!S.on[l.id];
+    const lg=document.createElement('div');lg.className='legend';lg.hidden=true;
+    cb.onchange=()=>{S.on[l.id]=cb.checked;rg.hidden=!cb.checked;refreshLayer(l);save()};
+    rg.oninput=()=>{S.op[l.id]=+rg.value;(overlay[l.id]||[]).forEach(x=>x.setOpacity(+rg.value))};
+    rg.onchange=save;
+    lgb.onclick=()=>{if(l.nolegend)return;
+      if(!lg.firstChild){const im=new Image();im.alt=t('legend')+': '+t('l_'+l.id);
+        im.src=(l.url||GS+'/egkn/wms')+'?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetLegendGraphic&FORMAT=image/png&LAYER='+encodeURIComponent(l.layers.split(',')[0])+(l.styles?'&STYLE='+encodeURIComponent(l.styles):'')+'&LEGEND_OPTIONS=fontAntiAliasing:true;fontSize:11';
+        im.onerror=()=>{lg.textContent=t('noLegend')};lg.appendChild(im)}
+      lg.hidden=!lg.hidden;lgb.textContent=lg.hidden?t('legend'):t('hideLegend')};
+    row.append(cb,lb,lgb,rg,lg);list.appendChild(row);
+  });
+}
+function buildBaseList(){
+  const bl=document.getElementById('baseList');bl.innerHTML='';
+  BASES.forEach(b=>{const lab=document.createElement('label');lab.className='base';
+    const r=document.createElement('input');r.type='radio';r.name='base';r.value=b.id;r.checked=S.base===b.id;r.onchange=()=>setBase(b.id);
+    const s=document.createElement('span');s.textContent=t('b_'+b.id);lab.append(r,s);
+    if(b.sub){const m=document.createElement('small');m.textContent='· '+t('b_'+b.id+'_s');lab.appendChild(m)}
+    bl.appendChild(lab)});
+}
+
+// ---------------------------------------------------------------- coordinates & cadastre lookup
+const cEl=document.getElementById('coords');
+map.on('mousemove',e=>{const {lat,lng}=e.latlng;const u=utm(lat,lng);cEl.textContent=`${lat.toFixed(6)}, ${lng.toFixed(6)}  ·  UTM ${u.zone}N ${u.E.toFixed(1)} ${u.N.toFixed(1)}`});
+function gfiUrl(lat,lon,dist){
+  const ids=EGKN.filter(l=>S.on[l.id]&&l.dist).map(l=>l.layers).join(',')||'egkn:u_view';
+  const srs=(DIST[dist]&&DIST[dist].srs)||10945,[gE,gN]=srsFwd(srs,lat,lon),r=15;
+  const bbox=[gE-r,gN-r,gE+r,gN+r].map(v=>v.toFixed(2)).join(',');
+  return `${GS}/egkn/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&LAYERS=${ids}&QUERY_LAYERS=${ids}&STYLES=&SRS=EPSG:${srs}&BBOX=${bbox}&WIDTH=101&HEIGHT=101&X=50&Y=50&INFO_FORMAT=text/html&FEATURE_COUNT=10&viewparams=district_id:${dist}`;
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+map.on('click',e=>{
+  if(DRAW.mode)return;
+  const {lat,lng}=e.latlng,u=utm(lat,lng);
+  const links=S.dists.map(id=>`<a href="${gfiUrl(lat,lng,id)}" target="_blank" rel="noopener">${t('egknAt')} — ${esc(DIST[id]?.name||id)}</a>`).join('');
+  const txt=`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  L.popup().setLatLng(e.latlng).setContent(`<div class="pop">
+    <span class="mono">${txt}</span>
+    <span class="mono">UTM ${u.zone}N: ${u.E.toFixed(1)} ${u.N.toFixed(1)}</span>
+    <button class="iconbtn" type="button" id="cp">${t('copyCoords')}</button>
+    <div class="links">${links||`<span>${t('addDistFirst')}</span>`}
+      <a href="https://yandex.kz/maps/?pt=${lng},${lat}&z=17&l=sat%2Cskl" target="_blank" rel="noopener">${t('openYandex')}</a>
+      <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank" rel="noopener">${t('openGoogle')}</a></div></div>`).openOn(map);
+  setTimeout(()=>{const b=document.getElementById('cp');if(b)b.onclick=()=>{navigator.clipboard.writeText(txt).then(()=>b.textContent=t('copied'),()=>b.textContent=txt)}},0);
+});
+let gotoMk=null;
+function go(){const m=document.getElementById('goto').value.replace(/,/g,' ').trim().split(/\s+/).map(Number);
+  if(m.length<2||m.some(isNaN))return;let [a,b]=m;if(Math.abs(a)>Math.abs(b)&&Math.abs(a)>90)[a,b]=[b,a];
+  if(gotoMk)map.removeLayer(gotoMk);gotoMk=L.marker([a,b]).addTo(map);map.setView([a,b],Math.max(map.getZoom(),16));}
+document.getElementById('gotoBtn').onclick=go;document.getElementById('goto').onkeydown=e=>{if(e.key==='Enter')go()};
+
+// ---------------------------------------------------------------- panel chrome
+const panel=document.getElementById('panel'),tg=document.getElementById('toggle');
+tg.onclick=()=>{const c=panel.classList.toggle('collapsed');tg.textContent=c?t('expand'):t('collapse');tg.setAttribute('aria-expanded',String(!c))};
+const tabL=document.getElementById('tabL'),tabD=document.getElementById('tabD'),paneL=document.getElementById('paneLayers'),paneD=document.getElementById('paneDraw');
+function showTab(d){tabD.setAttribute('aria-selected',String(d));tabL.setAttribute('aria-selected',String(!d));paneD.hidden=!d;paneL.hidden=d;try{localStorage.setItem('egkn-tab',d?'d':'l')}catch(e){}}
+tabL.onclick=()=>showTab(false);tabD.onclick=()=>showTab(true);
+
+// ---------------------------------------------------------------- drawing & measuring
+function measure(ll){
+  const zone=zoneOf(ll[0]);
+  const P=ll.map(([la,lo])=>{const u=utm(la,lo,zone);return [u.E,u.N]});
+  let A=0,cx=0,cy=0;
+  for(let i=0;i<P.length;i++){const [x1,y1]=P[i],[x2,y2]=P[(i+1)%P.length],c=x1*y2-x2*y1;A+=c;cx+=(x1+x2)*c;cy+=(y1+y2)*c}
+  A/=2;const C=Math.abs(A)>1e-9?[cx/(6*A),cy/(6*A)]:P[0];
+  const k=kScale(C[0]);
+  let idx=P.map((_,i)=>i);if(A>0)idx.reverse();
+  let s=0,best=Infinity;idx.forEach((i,j)=>{const v=P[i][0]-P[i][1];if(v<best){best=v;s=j}});
+  idx=idx.slice(s).concat(idx.slice(0,s));
+  const pts=idx.map((i,n)=>{const j=idx[(n+1)%idx.length];const dE=P[j][0]-P[i][0],dN=P[j][1]-P[i][1];
+    return {n:n+1,E:P[i][0],N:P[i][1],lat:ll[i][0],lon:ll[i][1],len:Math.hypot(dE,dN)/k,dir:(Math.atan2(dE,dN)*180/Math.PI+360)%360}});
+  const perim=pts.reduce((s,p)=>s+p.len,0);
+  let selfX=false;const seg=(a,b,c,d)=>{const o=(p,q,r)=>Math.sign((q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]));return o(a,b,c)*o(a,b,d)<0&&o(c,d,a)*o(c,d,b)<0};
+  for(let i=0;i<P.length&&!selfX;i++)for(let j=i+2;j<P.length;j++){if(i===0&&j===P.length-1)continue;if(seg(P[i],P[(i+1)%P.length],P[j],P[(j+1)%P.length])){selfX=true;break}}
+  return {zone,area:Math.abs(A)/(k*k),perim,pts,center:utmInv(C[0],C[1],zone),cUtm:C,selfX};
+}
+const DRAW={mode:null,pts:[],line:null,ghost:null,tips:[]};
+const COLORS=['#ff3b7f','#ffb000','#7cff4f','#4fc3ff','#c77dff','#ff7a45'];
+const SK='egkn-shapes-v1';
+let shapes=[];try{shapes=JSON.parse(localStorage.getItem(SK)||'[]')}catch(e){}
+const saveShapes=()=>{try{localStorage.setItem(SK,JSON.stringify(shapes))}catch(e){}};
+let selId=null;const shapeLayers={};const editGroup=L.layerGroup().addTo(map);const rulerGroup=L.layerGroup().addTo(map);
+
+const hint=document.getElementById('drawHint'),rectForm=document.getElementById('rectForm');
+const toolBtns={poly:document.getElementById('tPoly'),rect:document.getElementById('tRect'),ruler:document.getElementById('tRuler')};
+function setMode(m){
+  cancelDraft();DRAW.mode=(DRAW.mode===m)?null:m;
+  Object.entries(toolBtns).forEach(([k,b])=>b.setAttribute('aria-pressed',String(DRAW.mode===k)));
+  map.getContainer().classList.toggle('drawing',!!DRAW.mode);
+  DRAW.mode?map.doubleClickZoom.disable():map.doubleClickZoom.enable();
+  rectForm.hidden=DRAW.mode!=='rect';hint.hidden=!DRAW.mode;
+  hint.textContent=DRAW.mode?t({poly:'hintPoly',rect:'hintRect',ruler:'hintRuler'}[DRAW.mode]):'';
+  if(DRAW.mode==='ruler')rulerGroup.clearLayers();
+  updRectArea();
+}
+toolBtns.poly.onclick=()=>setMode('poly');toolBtns.rect.onclick=()=>setMode('rect');toolBtns.ruler.onclick=()=>setMode('ruler');
+function cancelDraft(){DRAW.pts=[];if(DRAW.line)map.removeLayer(DRAW.line);if(DRAW.ghost)map.removeLayer(DRAW.ghost);DRAW.line=DRAW.ghost=null;DRAW.tips.forEach(x=>rulerGroup.removeLayer(x));DRAW.tips=[]}
+function redrawDraft(){
+  if(DRAW.line){map.removeLayer(DRAW.line);rulerGroup.removeLayer(DRAW.line)}
+  const ruler=DRAW.mode==='ruler';
+  DRAW.line=L.polyline(DRAW.pts,{pane:'draw',color:ruler?'#ffe14d':'#ff3b7f',weight:3,dashArray:ruler?null:'6 4'}).addTo(ruler?rulerGroup:map);
+  if(ruler){DRAW.tips.forEach(x=>rulerGroup.removeLayer(x));DRAW.tips=[];let sum=0;
+    for(let i=1;i<DRAW.pts.length;i++){const d=map.distance(DRAW.pts[i-1],DRAW.pts[i]);sum+=d;
+      DRAW.tips.push(L.tooltip({permanent:true,direction:'right',className:'rulerlbl',offset:[6,0]}).setLatLng(DRAW.pts[i]).setContent(`${fmt(d,1)} ${t('m')} · Σ ${fmt(sum,1)} ${t('m')}`).addTo(rulerGroup))}}
+}
+function endRuler(){DRAW.line=null;DRAW.tips=[];DRAW.pts=[];setMode(null)}
+function finishPoly(){const pts=DRAW.pts.slice();if(pts.length<3)return;const ll=pts.map(p=>[p.lat,p.lng]);cancelDraft();addShape(ll);setMode(null)}
+map.on('click',e=>{
+  if(!DRAW.mode)return;
+  if(DRAW.mode==='rect'){placeRect(e.latlng);return}
+  if(DRAW.mode==='poly'&&DRAW.pts.length>=3){const p0=map.latLngToContainerPoint(DRAW.pts[0]),pc=map.latLngToContainerPoint(e.latlng);if(p0.distanceTo(pc)<10){finishPoly();return}}
+  const last=DRAW.pts[DRAW.pts.length-1];
+  if(last&&map.latLngToContainerPoint(last).distanceTo(map.latLngToContainerPoint(e.latlng))<4)return;
+  DRAW.pts.push(e.latlng);redrawDraft();
+});
+map.on('dblclick',()=>{if(DRAW.mode==='poly')finishPoly();else if(DRAW.mode==='ruler')endRuler()});
+map.on('mousemove',e=>{
+  if(!DRAW.mode||DRAW.mode==='rect'||!DRAW.pts.length)return;
+  const last=DRAW.pts[DRAW.pts.length-1];
+  if(DRAW.ghost)DRAW.ghost.setLatLngs([last,e.latlng]);else DRAW.ghost=L.polyline([last,e.latlng],{pane:'draw',color:'#ffffff',weight:2,dashArray:'3 5',interactive:false}).addTo(map);
+  DRAW.ghost.bindTooltip(fmt(map.distance(last,e.latlng),1)+' '+t('m'),{permanent:true,className:'rulerlbl',direction:'right',offset:[8,0]}).openTooltip(e.latlng);
+});
+document.addEventListener('keydown',e=>{
+  if(!DRAW.mode||/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+  if(e.key==='Escape'){if(DRAW.mode==='ruler')rulerGroup.clearLayers();setMode(null)}
+  else if(e.key==='Enter'){if(DRAW.mode==='poly')finishPoly();else if(DRAW.mode==='ruler')endRuler()}
+  else if(e.key==='Backspace'){DRAW.pts.pop();redrawDraft();e.preventDefault()}
+});
+
+const rW=document.getElementById('rW'),rL=document.getElementById('rL'),rA=document.getElementById('rA'),rArea=document.getElementById('rArea');
+function updRectArea(){const a=(+rW.value)*(+rL.value);rArea.textContent=t('rectArea')({m:fmt(a,0),ha:fmt(a/10000,4),sot:fmt(a/100,2)},fmt(2*(+rW.value+ +rL.value),1))}
+[rW,rL,rA].forEach(i=>i.oninput=updRectArea);
+document.querySelectorAll('#rectForm .presets button').forEach(b=>b.onclick=()=>{rW.value=b.dataset.w;rL.value=b.dataset.l;updRectArea()});
+function rectLL(center,w,l,ang){
+  const zone=zoneOf([center.lat,center.lng]),u=utm(center.lat,center.lng,zone),k=kScale(u.E),a=ang*Math.PI/180;
+  return [[-w/2,l/2],[w/2,l/2],[w/2,-l/2],[-w/2,-l/2]].map(([x,y])=>{x*=k;y*=k;
+    return utmInv(u.E+x*Math.cos(a)+y*Math.sin(a),u.N-x*Math.sin(a)+y*Math.cos(a),zone)});
+}
+function placeRect(c){const w=+rW.value,l=+rL.value;if(!(w>0&&l>0))return;addShape(rectLL(c,w,l,+rA.value||0),`${t('plot')} ${w}×${l} ${t('m')}`);setMode(null)}
+
+const purposeIdx=s=>Math.max(0,Math.min(5,s.purpose|0));
+function addShape(ll,name){
+  const id='s'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  shapes.push({id,name:name||(t('plot')+' '+(shapes.length+1)),purpose:0,ll,c:COLORS[shapes.length%COLORS.length]});
+  saveShapes();renderShapes();select(id);
+}
+const lblText=(s,m)=>`${s.name} · ${fmt(m.area/10000,4)} ${t('ha')}`;
+function renderShapes(){
+  Object.values(shapeLayers).forEach(l=>map.removeLayer(l));for(const k in shapeLayers)delete shapeLayers[k];
+  shapes.forEach(s=>{
+    const m=measure(s.ll);
+    const poly=L.polygon(s.ll,{pane:'draw',color:s.c,weight:selId===s.id?3:2,fillOpacity:selId===s.id?.25:.15})
+      .bindTooltip(esc(lblText(s,m)),{permanent:true,direction:'center',className:'shapelbl'}).addTo(map);
+    poly.on('click',e=>{if(DRAW.mode)return;L.DomEvent.stop(e);select(s.id)});
+    poly.on('mousedown',e=>{if(DRAW.mode||selId!==s.id)return;startMove(s,e)});
+    shapeLayers[s.id]=poly;
+  });
+  const list=document.getElementById('shapeList');list.innerHTML='';
+  if(!shapes.length){const p=document.createElement('p');p.className='note';p.textContent=t('empty');list.appendChild(p)}
+  shapes.forEach(s=>{const m=measure(s.ll);const r=document.createElement('div');r.className='shape'+(s.id===selId?' sel':'');r.tabIndex=0;
+    r.innerHTML=`<span class="sw" style="background:${s.c}"></span><span class="nm"></span><span class="ar">${fmt(m.area/10000,4)} ${t('ha')}</span>`;
+    r.querySelector('.nm').textContent=s.name;r.onclick=()=>select(s.id);r.onkeydown=e=>{if(e.key==='Enter')select(s.id)};list.appendChild(r)});
+}
+function startMove(s,e){
+  L.DomEvent.stop(e);map.dragging.disable();let prev=e.latlng;
+  const mv=ev=>{const dl=ev.latlng.lat-prev.lat,dn=ev.latlng.lng-prev.lng;prev=ev.latlng;s.ll=s.ll.map(([a,b])=>[a+dl,b+dn]);shapeLayers[s.id].setLatLngs(s.ll);drawHandles()};
+  const up=()=>{map.off('mousemove',mv);map.off('mouseup',up);document.removeEventListener('mouseup',up);map.dragging.enable();saveShapes();renderShapes();select(s.id,true)};
+  map.on('mousemove',mv);map.on('mouseup',up);document.addEventListener('mouseup',up);
+}
+function drawHandles(){
+  editGroup.clearLayers();const s=shapes.find(x=>x.id===selId);if(!s)return;
+  s.ll.forEach((p,i)=>{
+    const mk=L.marker(p,{draggable:true,pane:'draw',icon:L.divIcon({className:'',html:'<div class="vtx"></div>',iconSize:[0,0]})}).addTo(editGroup);
+    mk.on('drag',ev=>{const q=ev.target.getLatLng();s.ll[i]=[q.lat,q.lng];shapeLayers[s.id].setLatLngs(s.ll)});
+    mk.on('dragend',()=>{saveShapes();renderShapes();select(s.id,true)});
+    mk.on('contextmenu',ev=>{L.DomEvent.stop(ev);if(s.ll.length>3){s.ll.splice(i,1);saveShapes();renderShapes();select(s.id,true)}});
+  });
+  const zone=zoneOf(s.ll[0]);
+  s.ll.forEach((p,i)=>{const q=s.ll[(i+1)%s.ll.length];const mid=[(p[0]+q[0])/2,(p[1]+q[1])/2];
+    const a=utm(p[0],p[1],zone),b=utm(q[0],q[1],zone),len=Math.hypot(b.E-a.E,b.N-a.N)/kScale((a.E+b.E)/2);
+    const mk=L.marker(mid,{draggable:true,pane:'draw',icon:L.divIcon({className:'mid',html:`<i></i>${fmt(len,1)} ${t('m')}`,iconSize:null,iconAnchor:[5,5]})}).addTo(editGroup);
+    mk.on('dragstart',()=>{s.ll.splice(i+1,0,mid)});
+    mk.on('drag',ev=>{const q2=ev.target.getLatLng();s.ll[i+1]=[q2.lat,q2.lng];shapeLayers[s.id].setLatLngs(s.ll)});
+    mk.on('dragend',()=>{saveShapes();renderShapes();select(s.id,true)});
+  });
+}
+const sName=document.getElementById('sName'),sPurpose=document.getElementById('sPurpose'),sRot=document.getElementById('sRot');
+function fillPurposes(){sPurpose.innerHTML='';t('purposes').forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p;sPurpose.appendChild(o)})}
+function select(id,keep){
+  selId=id;const s=shapes.find(x=>x.id===id);document.getElementById('shapeInfo').hidden=!s;
+  if(!keep)renderShapes();else document.querySelectorAll('#shapeList .shape').forEach((r,i)=>r.classList.toggle('sel',shapes[i]&&shapes[i].id===id));
+  Object.entries(shapeLayers).forEach(([k,l])=>l.setStyle({weight:k===id?3:2,fillOpacity:k===id?.25:.15}));
+  drawHandles();if(!s)return;
+  if(paneD.hidden)showTab(true);
+  sName.value=s.name;sPurpose.value=purposeIdx(s);sRot.value=0;
+  const m=measure(s.ll);
+  document.getElementById('sStats').innerHTML=[
+    [t('area'),`${fmt(m.area,1)} ${t('m')}²`],['',`${fmt(m.area/10000,4)} ${t('ha')}`],['',`${fmt(m.area/100,2)} ${LANG==='ru'?'сот.':'sotka'}`],
+    [t('perim'),`${fmt(m.perim,2)} ${t('m')}`],[t('vertices'),m.pts.length],
+    [t('center'),`${m.center[0].toFixed(6)}, ${m.center[1].toFixed(6)}`],['UTM '+m.zone+'N',`${fmt(m.cUtm[0],1)} ${fmt(m.cUtm[1],1)}`]
+  ].map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('');
+  const w=document.getElementById('sWarn');w.hidden=!m.selfX;w.textContent=t('selfX');
+  document.getElementById('sLinks').innerHTML=S.dists.map(d=>`<a href="${gfiUrl(m.center[0],m.center[1],d)}" target="_blank" rel="noopener">${t('egknCenter')} — ${esc(DIST[d]?.name||d)}</a>`).join('');
+  document.getElementById('sTable').innerHTML='<tr>'+t('th').map(h=>`<th>${h}</th>`).join('')+'</tr>'+
+    m.pts.map(p=>`<tr><td>${p.n}</td><td>${p.N.toFixed(2)}</td><td>${p.E.toFixed(2)}</td><td>${p.lat.toFixed(7)}</td><td>${p.lon.toFixed(7)}</td><td>${p.len.toFixed(2)}</td><td>${dms(p.dir)}</td></tr>`).join('');
+}
+sName.oninput=()=>{const s=shapes.find(x=>x.id===selId);if(!s)return;s.name=sName.value;saveShapes();shapeLayers[s.id].setTooltipContent(esc(lblText(s,measure(s.ll))));const r=document.querySelectorAll('#shapeList .shape .nm')[shapes.indexOf(s)];if(r)r.textContent=s.name};
+sPurpose.onchange=()=>{const s=shapes.find(x=>x.id===selId);if(s){s.purpose=+sPurpose.value;saveShapes()}};
+let rotSnap=null;
+sRot.oninput=()=>{const s=shapes.find(x=>x.id===selId);if(!s)return;if(!rotSnap)rotSnap=s.ll.map(p=>p.slice());
+  const m=measure(rotSnap),zone=m.zone,a=+sRot.value*Math.PI/180,[cx,cy]=m.cUtm;
+  s.ll=rotSnap.map(([la,lo])=>{const u=utm(la,lo,zone),x=u.E-cx,y=u.N-cy;return utmInv(cx+x*Math.cos(a)+y*Math.sin(a),cy-x*Math.sin(a)+y*Math.cos(a),zone)});
+  shapeLayers[s.id].setLatLngs(s.ll);editGroup.clearLayers()};
+sRot.onchange=()=>{rotSnap=null;saveShapes();renderShapes();select(selId,true)};
+document.getElementById('sDel').onclick=()=>{const b=document.getElementById('sDel');
+  if(b.dataset.c!=='1'){b.dataset.c='1';b.textContent=t('delSure');setTimeout(()=>{b.dataset.c='';b.textContent=t('del')},3000);return}
+  shapes=shapes.filter(x=>x.id!==selId);selId=null;saveShapes();renderShapes();editGroup.clearLayers();document.getElementById('shapeInfo').hidden=true;b.dataset.c='';b.textContent=t('del')};
+document.getElementById('sZoom').onclick=()=>{const l=shapeLayers[selId];if(l)map.fitBounds(l.getBounds(),{padding:[60,60],maxZoom:19})};
+function catalogText(s){const m=measure(s.ll);
+  return [`${s.name} (${t('purposes')[purposeIdx(s)]})`,`${t('area')}: ${fmt(m.area,1)} ${t('m')}² (${fmt(m.area/10000,4)} ${t('ha')}), ${t('perim').toLowerCase()} ${fmt(m.perim,2)} ${t('m')}`,`WGS 84 / UTM ${m.zone}N`,
+    t('th').join('\t'),...m.pts.map(p=>[p.n,p.N.toFixed(2),p.E.toFixed(2),p.lat.toFixed(7),p.lon.toFixed(7),p.len.toFixed(2),dms(p.dir)].join('\t'))].join('\n')}
+document.getElementById('sCopy').onclick=()=>{const s=shapes.find(x=>x.id===selId);if(!s)return;const b=document.getElementById('sCopy');
+  navigator.clipboard.writeText(catalogText(s)).then(()=>{b.textContent=t('copied');setTimeout(()=>b.textContent=t('copy'),1500)},()=>{b.textContent=t('failed')})};
+
+document.getElementById('sPrint').onclick=()=>{
+  const s=shapes.find(x=>x.id===selId);if(!s)return;const m=measure(s.ll),P=t('pr');
+  const xs=m.pts.map(p=>p.E),ys=m.pts.map(p=>p.N),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const W=640,H=520,pad=70,sc=Math.min((W-2*pad)/(maxX-minX||1),(H-2*pad)/(maxY-minY||1));
+  const X=e=>pad+(e-minX)*sc+((W-2*pad)-(maxX-minX)*sc)/2,Y=n=>H-pad-(n-minY)*sc-((H-2*pad)-(maxY-minY)*sc)/2;
+  const cx=m.pts.reduce((a,p)=>a+X(p.E),0)/m.pts.length,cy=m.pts.reduce((a,p)=>a+Y(p.N),0)/m.pts.length;
+  let svg=`<polygon points="${m.pts.map(p=>X(p.E)+','+Y(p.N)).join(' ')}" fill="#e8f3ee" stroke="#111" stroke-width="2"/>`;
+  m.pts.forEach((p,i)=>{const q=m.pts[(i+1)%m.pts.length],mx=(X(p.E)+X(q.E))/2,my=(Y(p.N)+Y(q.N))/2;
+    let ang=Math.atan2(Y(q.N)-Y(p.N),X(q.E)-X(p.E))*180/Math.PI;if(ang>90)ang-=180;if(ang<-90)ang+=180;
+    const nx=mx-cx,ny=my-cy,nl=Math.hypot(nx,ny)||1,tx=mx+nx/nl*14,ty=my+ny/nl*14;
+    svg+=`<text x="${tx}" y="${ty}" font-size="12" text-anchor="middle" dominant-baseline="middle" transform="rotate(${ang} ${tx} ${ty})">${p.len.toFixed(2)} ${t('m')}</text>`;
+    const vx=X(p.E)-cx,vy=Y(p.N)-cy,vl=Math.hypot(vx,vy)||1;
+    svg+=`<circle cx="${X(p.E)}" cy="${Y(p.N)}" r="3.5" fill="#111"/><text x="${X(p.E)+vx/vl*16}" y="${Y(p.N)+vy/vl*16}" font-size="13" font-weight="700" text-anchor="middle" dominant-baseline="middle">${p.n}</text>`});
+  const bar=[1,2,5,10,20,25,50,100,200,250,500].find(v=>v*sc>=80)||1000;
+  svg+=`<g transform="translate(${W-60},40)"><path d="M0 26 L10 0 L20 26 L10 19 Z" fill="#111"/><text x="10" y="42" font-size="13" text-anchor="middle" font-weight="700">${P.N}</text></g>`;
+  svg+=`<g transform="translate(20,${H-24})"><line x1="0" y1="0" x2="${bar*sc}" y2="0" stroke="#111" stroke-width="3"/><text x="0" y="16" font-size="11">0</text><text x="${bar*sc}" y="16" font-size="11" text-anchor="end">${bar} ${t('m')}</text></g>`;
+  const rows=m.pts.map(p=>`<tr><td>${p.n}</td><td>${p.N.toFixed(2)}</td><td>${p.E.toFixed(2)}</td><td>${p.lat.toFixed(7)}</td><td>${p.lon.toFixed(7)}</td><td>${p.n}–${p.n%m.pts.length+1}</td><td>${p.len.toFixed(2)}</td><td>${dms(p.dir)}</td></tr>`).join('');
+  const scale=Math.round(1/(sc/(96/0.0254))/100)*100;
+  const html=`<!doctype html><html lang="${LANG}"><head><meta charset="utf-8"><title>${esc(P.title)} — ${esc(s.name)}</title><style>
+  body{font:13px/1.4 "Segoe UI",Arial,sans-serif;color:#111;background:#fff;margin:24px;max-width:780px}h1{font-size:18px;margin:0 0 4px}.sub{color:#555;margin:0 0 12px}
+  table{border-collapse:collapse;width:100%;font-size:12px;margin-top:10px}th,td{border:1px solid #999;padding:3px 6px;text-align:right}th{background:#eee}
+  .meta{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;margin:10px 0}.meta b{font-weight:600}.np{margin:14px 0}@media print{.np{display:none}body{margin:10mm}}</style></head><body>
+  <div class="np"><button onclick="print()">${P.printBtn}</button></div>
+  <h1>${esc(P.title)}: ${esc(s.name)}</h1><p class="sub">${P.use}: ${esc(t('purposes')[purposeIdx(s)])} · ${P.sub}</p>
+  <svg viewBox="0 0 ${W} ${H}" width="100%" style="border:1px solid #999;max-width:${W}px">${svg}</svg>
+  <div class="meta"><b>${P.area}</b><span>${fmt(m.area,1)} ${t('m')}² · ${fmt(m.area/10000,4)} ${t('ha')} · ${fmt(m.area/100,2)} ${LANG==='ru'?'сот.':'sotka'}</span>
+  <b>${P.perim}</b><span>${fmt(m.perim,2)} ${t('m')}</span><b>${P.center}</b><span>${m.center[0].toFixed(6)}, ${m.center[1].toFixed(6)} (WGS 84)</span>
+  <b>${P.crs}</b><span>${P.crsText(m.zone)}</span><b>${P.scale}</b><span>${P.scaleText(scale)}</span></div>
+  <table><tr>${P.th.map(h=>`<th>${h}</th>`).join('')}</tr>${rows}</table>
+  <p class="sub" style="margin-top:12px">${P.foot}</p></body></html>`;
+  const wdw=window.open('','_blank');if(!wdw){alert(t('popupBlocked'));return}wdw.document.write(html);wdw.document.close();
+};
+
+function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+const xesc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const kmlColor=(c,a)=>a+c.slice(5,7)+c.slice(3,5)+c.slice(1,3);
+document.getElementById('eKml').onclick=()=>{if(!shapes.length)return;
+  download('plots.kml',`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${xesc(t('kmlDoc'))}</name>`+
+  shapes.map(s=>{const m=measure(s.ll);return `<Placemark><name>${xesc(s.name)}</name><description>${xesc(t('purposes')[purposeIdx(s)])}; ${fmt(m.area,1)} ${t('m')}² (${fmt(m.area/10000,4)} ${t('ha')}); ${t('perim').toLowerCase()} ${fmt(m.perim,2)} ${t('m')}</description><Style><LineStyle><color>${kmlColor(s.c,'ff')}</color><width>2</width></LineStyle><PolyStyle><color>${kmlColor(s.c,'40')}</color></PolyStyle></Style><Polygon><outerBoundaryIs><LinearRing><coordinates>${s.ll.concat([s.ll[0]]).map(([a,b])=>`${b},${a},0`).join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`}).join('')+`</Document></kml>`,'application/vnd.google-earth.kml+xml')};
+document.getElementById('eGeo').onclick=()=>{if(!shapes.length)return;
+  download('plots.geojson',JSON.stringify({type:'FeatureCollection',features:shapes.map(s=>{const m=measure(s.ll);return {type:'Feature',properties:{name:s.name,use:t('purposes')[purposeIdx(s)],area_m2:+m.area.toFixed(1),area_ha:+(m.area/10000).toFixed(4),perimeter_m:+m.perim.toFixed(2)},geometry:{type:'Polygon',coordinates:[s.ll.concat([s.ll[0]]).map(([a,b])=>[+b.toFixed(8),+a.toFixed(8)])]}}})},null,1),'application/geo+json')};
+document.getElementById('eCsv').onclick=()=>{if(!shapes.length)return;
+  const dec=v=>LANG==='ru'?String(v).replace('.',','):String(v);
+  const rows=[t('csvHead')];
+  shapes.forEach(s=>{const m=measure(s.ll);m.pts.forEach(p=>rows.push([s.name,t('purposes')[purposeIdx(s)],dec(m.area.toFixed(1)),dec((m.area/10000).toFixed(4)),dec(m.perim.toFixed(2)),p.n,dec(p.N.toFixed(2)),dec(p.E.toFixed(2)),m.zone+'N',dec(p.lat.toFixed(7)),dec(p.lon.toFixed(7)),dec(p.len.toFixed(2)),dms(p.dir)]))});
+  const sep=LANG==='ru'?';':',';
+  download('plots.csv','\ufeff'+rows.map(r=>r.map(v=>new RegExp('['+sep+'"\\n]').test(String(v))?`"${String(v).replace(/"/g,'""')}"`:v).join(sep)).join('\r\n'),'text/csv')};
+document.getElementById('impFile').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{let n=0;
+  const add=(ll,name)=>{if(ll.length>1&&ll[0][0]===ll[ll.length-1][0]&&ll[0][1]===ll[ll.length-1][1])ll.pop();if(ll.length>=3){shapes.push({id:'i'+Date.now().toString(36)+n,name:name||(t('plot')+' '+(shapes.length+1)),purpose:0,ll,c:COLORS[shapes.length%COLORS.length]});n++}};
+  try{const txt=String(r.result);
+    if(/<kml/i.test(txt)){const d=new DOMParser().parseFromString(txt,'text/xml');d.querySelectorAll('Placemark').forEach(pm=>{const c=pm.querySelector('Polygon coordinates');if(!c)return;
+      add(c.textContent.trim().split(/\s+/).map(x=>x.split(',').map(Number)).filter(x=>x.length>=2).map(([lo,la])=>[la,lo]),pm.querySelector('name')?.textContent)})}
+    else{const g=JSON.parse(txt);(g.features||[g]).forEach(f=>{const gm=f.geometry||f;const polys=gm.type==='Polygon'?[gm.coordinates]:gm.type==='MultiPolygon'?gm.coordinates:[];
+      polys.forEach(pp=>add(pp[0].map(([lo,la])=>[la,lo]),f.properties&&(f.properties.name||f.properties.id)))})}
+  }catch(e){alert(t('readFail')+e.message)}
+  saveShapes();renderShapes();if(n){const g=L.featureGroup(shapes.slice(-n).map(s=>L.polygon(s.ll)));map.fitBounds(g.getBounds(),{padding:[40,40]})}ev.target.value=''};r.readAsText(f)};
+
+// ---------------------------------------------------------------- language
+function applyLang(){
+  document.documentElement.lang=LANG;document.title=t('doc');
+  document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
+  document.querySelectorAll('[data-i18n-aria]').forEach(el=>el.setAttribute('aria-label',t(el.dataset.i18nAria)));
+  document.querySelectorAll('.lang button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lang===LANG)));
+  tg.textContent=panel.classList.contains('collapsed')?t('expand'):t('collapse');
+  buildBaseList();buildEgknList();renderChips();fillPurposes();renderShapes();updRectArea();
+  if(DRAW.mode)hint.textContent=t({poly:'hintPoly',rect:'hintRect',ruler:'hintRuler'}[DRAW.mode]);
+  if(selId)select(selId,true);
+}
+document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>{LANG=b.dataset.lang;try{localStorage.setItem('spinstencil-lang',LANG)}catch(e){}applyLang();if(S.base==='ghyb'||S.base==='ymap')setBase(S.base)});
+
+// ======================================================================
+// Phone GPS: where am I, plot by walking corners, perimeter track
+// ======================================================================
+const GPS_I18N={
+ ru:{h:'GPS телефона',on:'Где я',off:'Выключить GPS',
+  statOff:'GPS выключен. Нужна геолокация на устройстве и разрешение браузера.',waiting:'Жду спутники…',
+  stat:(a,la,lo,s)=>`±${a} м · ${la}, ${lo} · ${s} с назад`,
+  corners:'Участок обходом углов',track:'Запись по периметру',
+  hintCorners:'Встаньте на угол участка и нажмите «Отметить угол». Стойте на месте, пока идёт усреднение, потом идите к следующему углу. Обошли все — «Готово».',
+  hintTrack:'Идите по границе участка: точки ставятся сами через заданный шаг. Замкните круг и нажмите «Готово».',
+  avg:'Усреднять, с',max:'Допуск, ±м',step:'Шаг трека, м',
+  mark:'Отметить угол',undo:'Убрать точку',done:'Готово',cancel:'Отмена',
+  averaging:(s,n)=>`Стойте на месте: ${s} с… (замеров: ${n})`,
+  noFix:'Нет сигнала GPS. Подождите или выйдите на открытое место.',
+  poor:(a,m)=>`Точность ±${a} м хуже допуска ±${m} м — взят лучший замер. Можно отметить угол заново.`,
+  got:(n,a,k)=>`Угол ${n}: ±${a} м по ${k} замерам.`,
+  info:(n,ar,pe)=>`Точек: ${n}`+(ar?` · ${ar} га · периметр ${pe} м`:''),
+  denied:'Доступ к геолокации запрещён. Разрешите его для этой страницы в настройках браузера.',
+  unavail:'Позиция недоступна. Включите геолокацию на устройстве.',timeout:'GPS долго не отвечает, продолжаю ждать.',
+  insecure:'Браузер даёт GPS только на страницах https. Откройте карту по ссылке GitHub Pages.',
+  noGeo:'Этот браузер не поддерживает геолокацию.',plot:'GPS-участок',need3:'Нужно хотя бы 3 точки.',
+  note:'Телефонный GPS даёт ±3–10 м. Для заявления это ориентир, точные координаты снимает землеустроитель.',
+  me:'Вы здесь',locate:'Где я (GPS)'},
+ en:{h:'Phone GPS',on:'Where am I',off:'Turn GPS off',
+  statOff:'GPS is off. The device needs location services and browser permission.',waiting:'Waiting for satellites…',
+  stat:(a,la,lo,s)=>`±${a} m · ${la}, ${lo} · ${s} s ago`,
+  corners:'Plot by walking corners',track:'Record the perimeter',
+  hintCorners:'Stand on a corner of the plot and press "Mark corner". Stay still while it averages, then walk to the next corner. When all are done, press "Done".',
+  hintTrack:'Walk along the boundary: points are added every set distance. Close the loop and press "Done".',
+  avg:'Average, s',max:'Tolerance, ±m',step:'Track step, m',
+  mark:'Mark corner',undo:'Remove point',done:'Done',cancel:'Cancel',
+  averaging:(s,n)=>`Stand still: ${s} s… (fixes: ${n})`,
+  noFix:'No GPS signal. Wait or move to open sky.',
+  poor:(a,m)=>`Accuracy ±${a} m is worse than ±${m} m, so the best fix was used. You can mark the corner again.`,
+  got:(n,a,k)=>`Corner ${n}: ±${a} m from ${k} fixes.`,
+  info:(n,ar,pe)=>`Points: ${n}`+(ar?` · ${ar} ha · perimeter ${pe} m`:''),
+  denied:'Location access is blocked. Allow it for this page in the browser settings.',
+  unavail:'Position unavailable. Turn on location services on the device.',timeout:'GPS is slow to answer, still waiting.',
+  insecure:'Browsers give GPS only to https pages. Open the map from its GitHub Pages link.',
+  noGeo:'This browser has no geolocation.',plot:'GPS plot',need3:'At least 3 points are needed.',
+  note:'Phone GPS is good to ±3–10 m. That is fine as a guide for an application; exact coordinates come from a land surveyor.',
+  me:'You are here',locate:'Where am I (GPS)'}
+};
+const gt=k=>GPS_I18N[(typeof LANG!=='undefined'&&LANG==='en')?'en':'ru'][k];
+const GPS={watch:null,last:null,dot:null,ring:null,follow:true,first:true,mode:null,pts:[],buf:null,work:L.layerGroup().addTo(map),me:L.layerGroup().addTo(map),wake:null,err:''};
+
+// panel section, placed right after the drawing tools
+const gpsSec=document.createElement('section');gpsSec.id='gpsSec';
+document.querySelector('#paneDraw section').after(gpsSec);
+gpsSec.innerHTML=`<h2 id="gH"></h2>
+<div class="btnrow"><button type="button" class="btn ghost" id="gOn"></button></div>
+<p class="note gpsstat" id="gStat"></p>
+<div class="tools"><button type="button" class="tool" id="gCorners" aria-pressed="false"></button><button type="button" class="tool" id="gTrack" aria-pressed="false"></button></div>
+<div id="gWork" hidden>
+  <div class="hint" id="gHint"></div>
+  <div class="nums">
+    <label><span id="gAvgL"></span><input type="number" id="gAvg" value="5" min="1" max="60"></label>
+    <label><span id="gMaxL"></span><input type="number" id="gMax" value="15" min="1" max="200"></label>
+    <label><span id="gStepL"></span><input type="number" id="gStep" value="3" min="1" max="50"></label>
+  </div>
+  <div class="btnrow" style="margin-top:6px">
+    <button type="button" class="btn" id="gMark"></button>
+    <button type="button" class="btn ghost" id="gUndo"></button>
+    <button type="button" class="btn" id="gDone"></button>
+    <button type="button" class="btn danger" id="gCancel"></button>
+  </div>
+  <p class="note" id="gInfo"></p>
+</div>
+<p class="note" id="gNote"></p>`;
+const $g=id=>document.getElementById(id);
+
+// map button
+const LocCtl=L.Control.extend({options:{position:'topleft'},onAdd(){
+  const d=L.DomUtil.create('div','leaflet-bar gpsctl'),a=L.DomUtil.create('a','',d);a.href='#';a.id='gLoc';a.setAttribute('role','button');
+  a.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4" stroke="currentColor" stroke-width="2"/></svg>';
+  L.DomEvent.on(a,'click',e=>{L.DomEvent.stop(e);if(GPS.watch===null)gpsStart();else{GPS.follow=true;GPS.last&&map.setView([GPS.last.lat,GPS.last.lng],Math.max(map.getZoom(),17))}});
+  L.DomEvent.disableClickPropagation(d);return d}});
+new LocCtl().addTo(map);
+
+function gpsRender(){
+  $g('gH').textContent=gt('h');$g('gOn').textContent=GPS.watch===null?gt('on'):gt('off');
+  $g('gCorners').textContent=gt('corners');$g('gTrack').textContent=gt('track');
+  $g('gAvgL').textContent=gt('avg');$g('gMaxL').textContent=gt('max');$g('gStepL').textContent=gt('step');
+  $g('gMark').textContent=gt('mark');$g('gUndo').textContent=gt('undo');$g('gDone').textContent=gt('done');$g('gCancel').textContent=gt('cancel');
+  $g('gNote').textContent=gt('note');$g('gLoc').title=gt('locate');$g('gLoc').setAttribute('aria-label',gt('locate'));
+  $g('gLoc').classList.toggle('on',GPS.watch!==null);
+  $g('gCorners').setAttribute('aria-pressed',String(GPS.mode==='corners'));$g('gTrack').setAttribute('aria-pressed',String(GPS.mode==='track'));
+  $g('gWork').hidden=!GPS.mode;
+  if(GPS.mode){$g('gHint').textContent=gt(GPS.mode==='corners'?'hintCorners':'hintTrack');$g('gMark').hidden=GPS.mode!=='corners';
+    $g('gAvg').parentElement.hidden=GPS.mode!=='corners';$g('gStep').parentElement.hidden=GPS.mode!=='track'}
+  gpsStatus();gpsDrawWork();
+}
+function gpsStatus(){
+  const el=$g('gStat');
+  if(GPS.err){el.textContent=GPS.err;return}
+  if(GPS.watch===null){el.textContent=gt('statOff');return}
+  if(!GPS.last){el.textContent=gt('waiting');return}
+  const L0=GPS.last;el.textContent=gt('stat')(Math.round(L0.acc),L0.lat.toFixed(6),L0.lng.toFixed(6),Math.max(0,Math.round((Date.now()-L0.t)/1000)));
+}
+setInterval(()=>{if(GPS.watch!==null)gpsStatus()},1000);
+
+function gpsStart(){
+  GPS.err='';
+  if(!('geolocation' in navigator)){GPS.err=gt('noGeo');gpsRender();return}
+  if(!window.isSecureContext&&location.protocol!=='file:'){GPS.err=gt('insecure')}
+  GPS.first=true;GPS.follow=true;
+  GPS.watch=navigator.geolocation.watchPosition(gpsPos,gpsErr,{enableHighAccuracy:true,maximumAge:0,timeout:30000});
+  gpsRender();
+}
+function gpsStop(){
+  if(GPS.watch!==null)navigator.geolocation.clearWatch(GPS.watch);
+  GPS.watch=null;GPS.last=null;GPS.me.clearLayers();GPS.dot=GPS.ring=null;gpsEnd(false);gpsRender();
+}
+function gpsErr(e){
+  GPS.err=e.code===1?gt('denied'):e.code===2?gt('unavail'):gt('timeout');
+  if(e.code===1){if(GPS.watch!==null)navigator.geolocation.clearWatch(GPS.watch);GPS.watch=null}
+  gpsRender();
+}
+function gpsPos(p){
+  const c=p.coords;GPS.err='';GPS.last={lat:c.latitude,lng:c.longitude,acc:c.accuracy,t:p.timestamp||Date.now()};
+  const ll=[c.latitude,c.longitude];
+  if(!GPS.dot){
+    GPS.ring=L.circle(ll,{radius:c.accuracy,pane:'draw',color:'#2a7fff',weight:1,fillColor:'#2a7fff',fillOpacity:.12,interactive:false}).addTo(GPS.me);
+    GPS.dot=L.circleMarker(ll,{pane:'draw',radius:7,color:'#fff',weight:2,fillColor:'#2a7fff',fillOpacity:1}).addTo(GPS.me);
+  }else{GPS.ring.setLatLng(ll).setRadius(c.accuracy);GPS.dot.setLatLng(ll)}
+  GPS.dot.bindTooltip(`${gt('me')}: ${c.latitude.toFixed(6)}, ${c.longitude.toFixed(6)} · ±${Math.round(c.accuracy)}`);
+  if(GPS.first){GPS.first=false;map.setView(ll,Math.max(map.getZoom(),17))}else if(GPS.follow)map.panTo(ll,{animate:false});
+  if(GPS.buf)GPS.buf.push(GPS.last);
+  if(GPS.mode==='track')gpsTrackAdd(GPS.last);
+  gpsStatus();
+}
+map.on('dragstart',()=>{GPS.follow=false});
+
+async function wakeOn(){try{GPS.wake=await navigator.wakeLock.request('screen')}catch(e){}}
+function wakeOff(){try{GPS.wake&&GPS.wake.release()}catch(e){}GPS.wake=null}
+
+function gpsBegin(mode){
+  if(GPS.mode===mode){gpsEnd(false);return}
+  if(typeof DRAW!=='undefined'&&DRAW.mode)setMode(null);
+  GPS.mode=mode;GPS.pts=[];GPS.buf=null;$g('gInfo').textContent='';
+  if(GPS.watch===null)gpsStart();
+  wakeOn();gpsRender();
+}
+function gpsEnd(save){
+  if(save){
+    let pts=GPS.pts.map(p=>[p.lat,p.lng]);
+    if(GPS.mode==='track')pts=gpsSimplify(pts,1);
+    if(pts.length<3){$g('gInfo').textContent=gt('need3');return}
+    const d=new Date(),stamp=`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    GPS.mode=null;GPS.pts=[];GPS.work.clearLayers();wakeOff();
+    addShape(pts,`${gt('plot')} ${stamp}`);gpsRender();return;
+  }
+  GPS.mode=null;GPS.pts=[];GPS.buf=null;GPS.work.clearLayers();wakeOff();
+  if(document.getElementById('gWork'))gpsRender();
+}
+function gpsDrawWork(){
+  GPS.work.clearLayers();if(!GPS.mode||!GPS.pts.length){if(GPS.mode)$g('gInfo').textContent=$g('gInfo').textContent||gt('info')(0);return}
+  const ll=GPS.pts.map(p=>[p.lat,p.lng]);
+  (ll.length>=3?L.polygon(ll,{pane:'draw',color:'#00e5ff',weight:2,dashArray:'6 4',fillOpacity:.12}):L.polyline(ll,{pane:'draw',color:'#00e5ff',weight:2,dashArray:'6 4'})).addTo(GPS.work);
+  if(GPS.mode==='corners')GPS.pts.forEach((p,i)=>{L.circle([p.lat,p.lng],{radius:p.acc,pane:'draw',color:'#00e5ff',weight:1,fillOpacity:.08,interactive:false}).addTo(GPS.work);
+    L.marker([p.lat,p.lng],{pane:'draw',icon:L.divIcon({className:'gpsnum',html:String(i+1),iconSize:[20,20],iconAnchor:[10,10]})}).addTo(GPS.work)});
+  let ar='',pe='';if(ll.length>=3){const m=measure(GPS.mode==='track'?gpsSimplify(ll,1):ll);ar=fmt(m.area/10000,4);pe=fmt(m.perim,1)}
+  const msg=$g('gInfo').dataset.msg||'';$g('gInfo').textContent=(msg?msg+' ':'')+gt('info')(GPS.pts.length,ar,pe);
+}
+function gpsMark(){
+  if(GPS.buf)return;
+  if(!GPS.last||Date.now()-GPS.last.t>15000){$g('gInfo').dataset.msg='';$g('gInfo').textContent=gt('noFix');return}
+  const secs=Math.max(1,+$g('gAvg').value||5),tol=Math.max(1,+$g('gMax').value||15),btn=$g('gMark');
+  GPS.buf=[];btn.disabled=true;let left=secs;
+  const tick=()=>{btn.textContent=gt('averaging')(left,GPS.buf.length);
+    if(left--<=0){
+      const all=GPS.buf.length?GPS.buf:[GPS.last];GPS.buf=null;btn.disabled=false;btn.textContent=gt('mark');
+      let use=all.filter(f=>f.acc<=tol),msg='';
+      if(!use.length){use=[all.reduce((a,b)=>a.acc<b.acc?a:b)];msg=gt('poor')(Math.round(use[0].acc),tol)}
+      let sw=0,la=0,lo=0;use.forEach(f=>{const w=1/(f.acc*f.acc);sw+=w;la+=f.lat*w;lo+=f.lng*w});
+      const acc=Math.min(...use.map(f=>f.acc))/Math.sqrt(use.length);
+      GPS.pts.push({lat:la/sw,lng:lo/sw,acc:Math.max(acc,1)});
+      $g('gInfo').dataset.msg=msg||gt('got')(GPS.pts.length,fmt(Math.max(acc,1),1),use.length);gpsDrawWork();return}
+    setTimeout(tick,1000)};
+  tick();
+}
+function gpsTrackAdd(f){
+  const tol=Math.max(1,+$g('gMax').value||15),step=Math.max(1,+$g('gStep').value||3);
+  if(f.acc>tol)return;
+  const last=GPS.pts[GPS.pts.length-1];
+  if(last&&map.distance([last.lat,last.lng],[f.lat,f.lng])<step)return;
+  GPS.pts.push({lat:f.lat,lng:f.lng,acc:f.acc});$g('gInfo').dataset.msg='';gpsDrawWork();
+}
+function gpsSimplify(ll,tolM){
+  if(ll.length<4)return ll;
+  const z=zoneOf(ll[0]),P=ll.map(([a,b])=>{const u=utm(a,b,z);return [u.E,u.N]}),keep=new Array(P.length).fill(false);keep[0]=keep[P.length-1]=true;
+  const dp=(i,j)=>{let md=0,k=-1;const [x1,y1]=P[i],[x2,y2]=P[j],L2=(x2-x1)**2+(y2-y1)**2;
+    for(let m=i+1;m<j;m++){const [x,y]=P[m];const d=L2?Math.abs((y2-y1)*x-(x2-x1)*y+x2*y1-y2*x1)/Math.sqrt(L2):Math.hypot(x-x1,y-y1);if(d>md){md=d;k=m}}
+    if(md>tolM&&k>0){keep[k]=true;dp(i,k);dp(k,j)}};
+  dp(0,P.length-1);
+  let out=ll.filter((_,i)=>keep[i]);
+  if(out.length>3&&map.distance(out[0],out[out.length-1])<Math.max(3,tolM*3))out.pop();
+  return out;
+}
+$g('gOn').onclick=()=>{GPS.watch===null?gpsStart():gpsStop()};
+$g('gCorners').onclick=()=>gpsBegin('corners');
+$g('gTrack').onclick=()=>gpsBegin('track');
+$g('gMark').onclick=gpsMark;
+$g('gUndo').onclick=()=>{GPS.pts.pop();$g('gInfo').dataset.msg='';gpsDrawWork()};
+$g('gDone').onclick=()=>gpsEnd(true);
+$g('gCancel').onclick=()=>gpsEnd(false);
+document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setTimeout(gpsRender,0)));
+gpsRender();
+
+map.on('moveend',save);
+applyLang();setBase(S.base);refreshAll();
+try{if(localStorage.getItem('egkn-tab')==='d')showTab(true)}catch(e){}
+</script>
+</body>
+</html>

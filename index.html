@@ -60,6 +60,22 @@ footer{color:var(--muted);font-size:13.5px}
       <h2 data-i18n="ssTitle"></h2>
       <p data-i18n="ssText"></p>
     </a>
+    <a class="card" href="cadastre-map/">
+      <svg viewBox="0 0 160 100" aria-hidden="true">
+        <rect width="160" height="100" fill="#5d6b4f"/>
+        <path d="M0 62 C30 50 52 78 80 66 S128 40 160 52 L160 60 C128 50 110 76 80 74 S30 58 0 70Z" fill="#2f5d6b"/>
+        <g fill="none" stroke="#9ccbff" stroke-width="1.2">
+          <path d="M8 8h34v22H8zM42 8h30v22H42zM8 30h22v20H8zM30 30h42v16H30zM96 10h28v30H96zM124 10h30v18h-30zM124 28h30v14h-30z"/>
+          <path d="M14 78h26v16H14zM40 80h30v14H40zM98 74h24v20H98z"/>
+        </g>
+        <path d="M76 18 L92 14 L97 34 L80 40 Z" fill="rgba(255,59,127,.35)" stroke="#ff3b7f" stroke-width="1.6"/>
+        <g fill="#fff" stroke="#ff3b7f" stroke-width="1"><circle cx="76" cy="18" r="1.8"/><circle cx="92" cy="14" r="1.8"/><circle cx="97" cy="34" r="1.8"/><circle cx="80" cy="40" r="1.8"/></g>
+        <text x="86" y="29" font-family="Arial" font-size="5" font-weight="700" fill="#fff" text-anchor="middle">0.15 ha</text>
+      </svg>
+      <span>cadastre-map</span>
+      <h2 data-i18n="cmTitle"></h2>
+      <p data-i18n="cmText"></p>
+    </a>
   </main>
   <footer data-i18n="foot"></footer>
 </div>
@@ -67,10 +83,12 @@ footer{color:var(--muted);font-size:13.5px}
 const I18N={
   en:{ doc:'Mini Apps', title:'Mini Apps', lead:'Small single-page tools. Each one is one HTML file that runs in the browser, with nothing to install.',
     ssTitle:'Spin Stencil', ssText:'Turns a picture into a rotating colouring stencil: a disk with numbered windows and a base sheet with marks. PDF and SVG for printing, hand cutting or a laser.',
-    foot:'Open source. Every app works offline once loaded.' },
+    cmTitle:'Cadastre Map KZ', cmText:'Kazakhstan land cadastre (EGKN) layers over any base map: Google, Yandex, Bing, Esri, 2GIS or the national satellite. Draw a plot, get its area, perimeter and coordinate list, print a plan.',
+    foot:'Open source. Every app works offline once loaded, except the maps, which need the internet.' },
   ru:{ doc:'Мини-приложения', title:'Мини-приложения', lead:'Небольшие одностраничные инструменты. Каждый — один HTML-файл, работает в браузере, ничего не нужно ставить.',
     ssTitle:'Поворотный трафарет', ssText:'Превращает картинку в поворотную раскраску: диск с пронумерованными окнами и основу с метками. PDF и SVG для печати, ручной резки или лазера.',
-    foot:'Открытый код. Загруженное приложение работает и без интернета.' }
+    cmTitle:'Кадастровая карта РК', cmText:'Слои ЕГКН поверх любой подложки: Google, Яндекс, Bing, Esri, 2ГИС или «Гарыш Сапары». Нарисуйте участок — площадь, периметр, каталог координат и схема для печати.',
+    foot:'Открытый код. Загруженное приложение работает и без интернета, кроме карт — им нужна сеть.' }
 };
 let LANG='en'; try{ const v=localStorage.getItem('spinstencil-lang'); if(v==='ru'||v==='en') LANG=v; }catch(e){}
 function apply(){ document.documentElement.lang=LANG; document.title=I18N[LANG].doc;
