@@ -109,6 +109,10 @@ input[type=number]{width:100%;min-width:0;font:13px var(--f-mono);color:var(--fg
 .shapelbl{background:rgba(0,0,0,.55);border:0;color:#fff;font:600 12px var(--f-body);box-shadow:none;padding:2px 6px}
 .shapelbl::before,.rulerlbl::before{display:none}
 .rulerlbl{background:#111;color:#ffe14d;border:0;font:600 12px var(--f-mono);box-shadow:none}
+.gpsctl a{display:flex;align-items:center;justify-content:center;width:30px;height:30px;color:#333;background:#fff}
+.gpsctl a.on{color:#2a7fff}
+.gpsnum{background:#00e5ff;color:#012;border:2px solid #fff;border-radius:50%;font:700 11px/16px var(--f-mono);text-align:center;box-shadow:0 0 3px #000}
+.gpsstat{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 @media (max-width:640px){
   .panel{top:auto;left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));bottom:max(8px,env(safe-area-inset-bottom,0px));width:auto;max-height:62vh}
   .coords{bottom:auto;top:max(8px,env(safe-area-inset-top,0px));left:56px;right:max(8px,env(safe-area-inset-right,0px));font-size:11px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
@@ -780,6 +784,215 @@ function applyLang(){
   if(selId)select(selId,true);
 }
 document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>{LANG=b.dataset.lang;try{localStorage.setItem('spinstencil-lang',LANG)}catch(e){}applyLang();if(S.base==='ghyb'||S.base==='ymap')setBase(S.base)});
+
+// ======================================================================
+// Phone GPS: where am I, plot by walking corners, perimeter track
+// ======================================================================
+const GPS_I18N={
+ ru:{h:'GPS телефона',on:'Где я',off:'Выключить GPS',
+  statOff:'GPS выключен. Нужна геолокация на устройстве и разрешение браузера.',waiting:'Жду спутники…',
+  stat:(a,la,lo,s)=>`±${a} м · ${la}, ${lo} · ${s} с назад`,
+  corners:'Участок обходом углов',track:'Запись по периметру',
+  hintCorners:'Встаньте на угол участка и нажмите «Отметить угол». Стойте на месте, пока идёт усреднение, потом идите к следующему углу. Обошли все — «Готово».',
+  hintTrack:'Идите по границе участка: точки ставятся сами через заданный шаг. Замкните круг и нажмите «Готово».',
+  avg:'Усреднять, с',max:'Допуск, ±м',step:'Шаг трека, м',
+  mark:'Отметить угол',undo:'Убрать точку',done:'Готово',cancel:'Отмена',
+  averaging:(s,n)=>`Стойте на месте: ${s} с… (замеров: ${n})`,
+  noFix:'Нет сигнала GPS. Подождите или выйдите на открытое место.',
+  poor:(a,m)=>`Точность ±${a} м хуже допуска ±${m} м — взят лучший замер. Можно отметить угол заново.`,
+  got:(n,a,k)=>`Угол ${n}: ±${a} м по ${k} замерам.`,
+  info:(n,ar,pe)=>`Точек: ${n}`+(ar?` · ${ar} га · периметр ${pe} м`:''),
+  denied:'Доступ к геолокации запрещён. Разрешите его для этой страницы в настройках браузера.',
+  unavail:'Позиция недоступна. Включите геолокацию на устройстве.',timeout:'GPS долго не отвечает, продолжаю ждать.',
+  insecure:'Браузер даёт GPS только на страницах https. Откройте карту по ссылке GitHub Pages.',
+  noGeo:'Этот браузер не поддерживает геолокацию.',plot:'GPS-участок',need3:'Нужно хотя бы 3 точки.',
+  note:'Телефонный GPS даёт ±3–10 м. Для заявления это ориентир, точные координаты снимает землеустроитель.',
+  me:'Вы здесь',locate:'Где я (GPS)'},
+ en:{h:'Phone GPS',on:'Where am I',off:'Turn GPS off',
+  statOff:'GPS is off. The device needs location services and browser permission.',waiting:'Waiting for satellites…',
+  stat:(a,la,lo,s)=>`±${a} m · ${la}, ${lo} · ${s} s ago`,
+  corners:'Plot by walking corners',track:'Record the perimeter',
+  hintCorners:'Stand on a corner of the plot and press "Mark corner". Stay still while it averages, then walk to the next corner. When all are done, press "Done".',
+  hintTrack:'Walk along the boundary: points are added every set distance. Close the loop and press "Done".',
+  avg:'Average, s',max:'Tolerance, ±m',step:'Track step, m',
+  mark:'Mark corner',undo:'Remove point',done:'Done',cancel:'Cancel',
+  averaging:(s,n)=>`Stand still: ${s} s… (fixes: ${n})`,
+  noFix:'No GPS signal. Wait or move to open sky.',
+  poor:(a,m)=>`Accuracy ±${a} m is worse than ±${m} m, so the best fix was used. You can mark the corner again.`,
+  got:(n,a,k)=>`Corner ${n}: ±${a} m from ${k} fixes.`,
+  info:(n,ar,pe)=>`Points: ${n}`+(ar?` · ${ar} ha · perimeter ${pe} m`:''),
+  denied:'Location access is blocked. Allow it for this page in the browser settings.',
+  unavail:'Position unavailable. Turn on location services on the device.',timeout:'GPS is slow to answer, still waiting.',
+  insecure:'Browsers give GPS only to https pages. Open the map from its GitHub Pages link.',
+  noGeo:'This browser has no geolocation.',plot:'GPS plot',need3:'At least 3 points are needed.',
+  note:'Phone GPS is good to ±3–10 m. That is fine as a guide for an application; exact coordinates come from a land surveyor.',
+  me:'You are here',locate:'Where am I (GPS)'}
+};
+const gt=k=>GPS_I18N[(typeof LANG!=='undefined'&&LANG==='en')?'en':'ru'][k];
+const GPS={watch:null,last:null,dot:null,ring:null,follow:true,first:true,mode:null,pts:[],buf:null,work:L.layerGroup().addTo(map),me:L.layerGroup().addTo(map),wake:null,err:''};
+
+// panel section, placed right after the drawing tools
+const gpsSec=document.createElement('section');gpsSec.id='gpsSec';
+document.querySelector('#paneDraw section').after(gpsSec);
+gpsSec.innerHTML=`<h2 id="gH"></h2>
+<div class="btnrow"><button type="button" class="btn ghost" id="gOn"></button></div>
+<p class="note gpsstat" id="gStat"></p>
+<div class="tools"><button type="button" class="tool" id="gCorners" aria-pressed="false"></button><button type="button" class="tool" id="gTrack" aria-pressed="false"></button></div>
+<div id="gWork" hidden>
+  <div class="hint" id="gHint"></div>
+  <div class="nums">
+    <label><span id="gAvgL"></span><input type="number" id="gAvg" value="5" min="1" max="60"></label>
+    <label><span id="gMaxL"></span><input type="number" id="gMax" value="15" min="1" max="200"></label>
+    <label><span id="gStepL"></span><input type="number" id="gStep" value="3" min="1" max="50"></label>
+  </div>
+  <div class="btnrow" style="margin-top:6px">
+    <button type="button" class="btn" id="gMark"></button>
+    <button type="button" class="btn ghost" id="gUndo"></button>
+    <button type="button" class="btn" id="gDone"></button>
+    <button type="button" class="btn danger" id="gCancel"></button>
+  </div>
+  <p class="note" id="gInfo"></p>
+</div>
+<p class="note" id="gNote"></p>`;
+const $g=id=>document.getElementById(id);
+
+// map button
+const LocCtl=L.Control.extend({options:{position:'topleft'},onAdd(){
+  const d=L.DomUtil.create('div','leaflet-bar gpsctl'),a=L.DomUtil.create('a','',d);a.href='#';a.id='gLoc';a.setAttribute('role','button');
+  a.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4" stroke="currentColor" stroke-width="2"/></svg>';
+  L.DomEvent.on(a,'click',e=>{L.DomEvent.stop(e);if(GPS.watch===null)gpsStart();else{GPS.follow=true;GPS.last&&map.setView([GPS.last.lat,GPS.last.lng],Math.max(map.getZoom(),17))}});
+  L.DomEvent.disableClickPropagation(d);return d}});
+new LocCtl().addTo(map);
+
+function gpsRender(){
+  $g('gH').textContent=gt('h');$g('gOn').textContent=GPS.watch===null?gt('on'):gt('off');
+  $g('gCorners').textContent=gt('corners');$g('gTrack').textContent=gt('track');
+  $g('gAvgL').textContent=gt('avg');$g('gMaxL').textContent=gt('max');$g('gStepL').textContent=gt('step');
+  $g('gMark').textContent=gt('mark');$g('gUndo').textContent=gt('undo');$g('gDone').textContent=gt('done');$g('gCancel').textContent=gt('cancel');
+  $g('gNote').textContent=gt('note');$g('gLoc').title=gt('locate');$g('gLoc').setAttribute('aria-label',gt('locate'));
+  $g('gLoc').classList.toggle('on',GPS.watch!==null);
+  $g('gCorners').setAttribute('aria-pressed',String(GPS.mode==='corners'));$g('gTrack').setAttribute('aria-pressed',String(GPS.mode==='track'));
+  $g('gWork').hidden=!GPS.mode;
+  if(GPS.mode){$g('gHint').textContent=gt(GPS.mode==='corners'?'hintCorners':'hintTrack');$g('gMark').hidden=GPS.mode!=='corners';
+    $g('gAvg').parentElement.hidden=GPS.mode!=='corners';$g('gStep').parentElement.hidden=GPS.mode!=='track'}
+  gpsStatus();gpsDrawWork();
+}
+function gpsStatus(){
+  const el=$g('gStat');
+  if(GPS.err){el.textContent=GPS.err;return}
+  if(GPS.watch===null){el.textContent=gt('statOff');return}
+  if(!GPS.last){el.textContent=gt('waiting');return}
+  const L0=GPS.last;el.textContent=gt('stat')(Math.round(L0.acc),L0.lat.toFixed(6),L0.lng.toFixed(6),Math.max(0,Math.round((Date.now()-L0.t)/1000)));
+}
+setInterval(()=>{if(GPS.watch!==null)gpsStatus()},1000);
+
+function gpsStart(){
+  GPS.err='';
+  if(!('geolocation' in navigator)){GPS.err=gt('noGeo');gpsRender();return}
+  if(!window.isSecureContext&&location.protocol!=='file:'){GPS.err=gt('insecure')}
+  GPS.first=true;GPS.follow=true;
+  GPS.watch=navigator.geolocation.watchPosition(gpsPos,gpsErr,{enableHighAccuracy:true,maximumAge:0,timeout:30000});
+  gpsRender();
+}
+function gpsStop(){
+  if(GPS.watch!==null)navigator.geolocation.clearWatch(GPS.watch);
+  GPS.watch=null;GPS.last=null;GPS.me.clearLayers();GPS.dot=GPS.ring=null;gpsEnd(false);gpsRender();
+}
+function gpsErr(e){
+  GPS.err=e.code===1?gt('denied'):e.code===2?gt('unavail'):gt('timeout');
+  if(e.code===1){if(GPS.watch!==null)navigator.geolocation.clearWatch(GPS.watch);GPS.watch=null}
+  gpsRender();
+}
+function gpsPos(p){
+  const c=p.coords;GPS.err='';GPS.last={lat:c.latitude,lng:c.longitude,acc:c.accuracy,t:p.timestamp||Date.now()};
+  const ll=[c.latitude,c.longitude];
+  if(!GPS.dot){
+    GPS.ring=L.circle(ll,{radius:c.accuracy,pane:'draw',color:'#2a7fff',weight:1,fillColor:'#2a7fff',fillOpacity:.12,interactive:false}).addTo(GPS.me);
+    GPS.dot=L.circleMarker(ll,{pane:'draw',radius:7,color:'#fff',weight:2,fillColor:'#2a7fff',fillOpacity:1}).addTo(GPS.me);
+  }else{GPS.ring.setLatLng(ll).setRadius(c.accuracy);GPS.dot.setLatLng(ll)}
+  GPS.dot.bindTooltip(`${gt('me')}: ${c.latitude.toFixed(6)}, ${c.longitude.toFixed(6)} · ±${Math.round(c.accuracy)}`);
+  if(GPS.first){GPS.first=false;map.setView(ll,Math.max(map.getZoom(),17))}else if(GPS.follow)map.panTo(ll,{animate:false});
+  if(GPS.buf)GPS.buf.push(GPS.last);
+  if(GPS.mode==='track')gpsTrackAdd(GPS.last);
+  gpsStatus();
+}
+map.on('dragstart',()=>{GPS.follow=false});
+
+async function wakeOn(){try{GPS.wake=await navigator.wakeLock.request('screen')}catch(e){}}
+function wakeOff(){try{GPS.wake&&GPS.wake.release()}catch(e){}GPS.wake=null}
+
+function gpsBegin(mode){
+  if(GPS.mode===mode){gpsEnd(false);return}
+  if(typeof DRAW!=='undefined'&&DRAW.mode)setMode(null);
+  GPS.mode=mode;GPS.pts=[];GPS.buf=null;$g('gInfo').textContent='';
+  if(GPS.watch===null)gpsStart();
+  wakeOn();gpsRender();
+}
+function gpsEnd(save){
+  if(save){
+    let pts=GPS.pts.map(p=>[p.lat,p.lng]);
+    if(GPS.mode==='track')pts=gpsSimplify(pts,1);
+    if(pts.length<3){$g('gInfo').textContent=gt('need3');return}
+    const d=new Date(),stamp=`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    GPS.mode=null;GPS.pts=[];GPS.work.clearLayers();wakeOff();
+    addShape(pts,`${gt('plot')} ${stamp}`);gpsRender();return;
+  }
+  GPS.mode=null;GPS.pts=[];GPS.buf=null;GPS.work.clearLayers();wakeOff();
+  if(document.getElementById('gWork'))gpsRender();
+}
+function gpsDrawWork(){
+  GPS.work.clearLayers();if(!GPS.mode||!GPS.pts.length){if(GPS.mode)$g('gInfo').textContent=$g('gInfo').textContent||gt('info')(0);return}
+  const ll=GPS.pts.map(p=>[p.lat,p.lng]);
+  (ll.length>=3?L.polygon(ll,{pane:'draw',color:'#00e5ff',weight:2,dashArray:'6 4',fillOpacity:.12}):L.polyline(ll,{pane:'draw',color:'#00e5ff',weight:2,dashArray:'6 4'})).addTo(GPS.work);
+  if(GPS.mode==='corners')GPS.pts.forEach((p,i)=>{L.circle([p.lat,p.lng],{radius:p.acc,pane:'draw',color:'#00e5ff',weight:1,fillOpacity:.08,interactive:false}).addTo(GPS.work);
+    L.marker([p.lat,p.lng],{pane:'draw',icon:L.divIcon({className:'gpsnum',html:String(i+1),iconSize:[20,20],iconAnchor:[10,10]})}).addTo(GPS.work)});
+  let ar='',pe='';if(ll.length>=3){const m=measure(GPS.mode==='track'?gpsSimplify(ll,1):ll);ar=fmt(m.area/10000,4);pe=fmt(m.perim,1)}
+  const msg=$g('gInfo').dataset.msg||'';$g('gInfo').textContent=(msg?msg+' ':'')+gt('info')(GPS.pts.length,ar,pe);
+}
+function gpsMark(){
+  if(GPS.buf)return;
+  if(!GPS.last||Date.now()-GPS.last.t>15000){$g('gInfo').dataset.msg='';$g('gInfo').textContent=gt('noFix');return}
+  const secs=Math.max(1,+$g('gAvg').value||5),tol=Math.max(1,+$g('gMax').value||15),btn=$g('gMark');
+  GPS.buf=[];btn.disabled=true;let left=secs;
+  const tick=()=>{btn.textContent=gt('averaging')(left,GPS.buf.length);
+    if(left--<=0){
+      const all=GPS.buf.length?GPS.buf:[GPS.last];GPS.buf=null;btn.disabled=false;btn.textContent=gt('mark');
+      let use=all.filter(f=>f.acc<=tol),msg='';
+      if(!use.length){use=[all.reduce((a,b)=>a.acc<b.acc?a:b)];msg=gt('poor')(Math.round(use[0].acc),tol)}
+      let sw=0,la=0,lo=0;use.forEach(f=>{const w=1/(f.acc*f.acc);sw+=w;la+=f.lat*w;lo+=f.lng*w});
+      const acc=Math.min(...use.map(f=>f.acc))/Math.sqrt(use.length);
+      GPS.pts.push({lat:la/sw,lng:lo/sw,acc:Math.max(acc,1)});
+      $g('gInfo').dataset.msg=msg||gt('got')(GPS.pts.length,fmt(Math.max(acc,1),1),use.length);gpsDrawWork();return}
+    setTimeout(tick,1000)};
+  tick();
+}
+function gpsTrackAdd(f){
+  const tol=Math.max(1,+$g('gMax').value||15),step=Math.max(1,+$g('gStep').value||3);
+  if(f.acc>tol)return;
+  const last=GPS.pts[GPS.pts.length-1];
+  if(last&&map.distance([last.lat,last.lng],[f.lat,f.lng])<step)return;
+  GPS.pts.push({lat:f.lat,lng:f.lng,acc:f.acc});$g('gInfo').dataset.msg='';gpsDrawWork();
+}
+function gpsSimplify(ll,tolM){
+  if(ll.length<4)return ll;
+  const z=zoneOf(ll[0]),P=ll.map(([a,b])=>{const u=utm(a,b,z);return [u.E,u.N]}),keep=new Array(P.length).fill(false);keep[0]=keep[P.length-1]=true;
+  const dp=(i,j)=>{let md=0,k=-1;const [x1,y1]=P[i],[x2,y2]=P[j],L2=(x2-x1)**2+(y2-y1)**2;
+    for(let m=i+1;m<j;m++){const [x,y]=P[m];const d=L2?Math.abs((y2-y1)*x-(x2-x1)*y+x2*y1-y2*x1)/Math.sqrt(L2):Math.hypot(x-x1,y-y1);if(d>md){md=d;k=m}}
+    if(md>tolM&&k>0){keep[k]=true;dp(i,k);dp(k,j)}};
+  dp(0,P.length-1);
+  let out=ll.filter((_,i)=>keep[i]);
+  if(out.length>3&&map.distance(out[0],out[out.length-1])<Math.max(3,tolM*3))out.pop();
+  return out;
+}
+$g('gOn').onclick=()=>{GPS.watch===null?gpsStart():gpsStop()};
+$g('gCorners').onclick=()=>gpsBegin('corners');
+$g('gTrack').onclick=()=>gpsBegin('track');
+$g('gMark').onclick=gpsMark;
+$g('gUndo').onclick=()=>{GPS.pts.pop();$g('gInfo').dataset.msg='';gpsDrawWork()};
+$g('gDone').onclick=()=>gpsEnd(true);
+$g('gCancel').onclick=()=>gpsEnd(false);
+document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setTimeout(gpsRender,0)));
+gpsRender();
 
 map.on('moveend',save);
 applyLang();setBase(S.base);refreshAll();
