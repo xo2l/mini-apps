@@ -61,7 +61,10 @@ select,input[type=text]{width:100%;min-width:0;font:13px var(--f-body);color:var
 .lyr .legend img{display:block;max-width:100%}
 .base{display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer}
 .base small{color:var(--muted)}
-.base select.s2y{width:auto;flex:0 0 auto;margin-left:auto;font:inherit;font-size:12px;padding:0 2px}
+.base .s2y{width:auto;flex:0 0 auto;margin-left:auto;font:inherit;font-size:12px;padding:0 2px}
+.s2b{display:flex;align-items:center;gap:6px;margin:2px 0 6px 24px;font-size:12px;color:var(--muted)}
+.s2b button{font:inherit;padding:0 7px;border:1px solid var(--line,#ccc);border-radius:4px;background:none;cursor:pointer}
+.s2b button:disabled{opacity:.35;cursor:default}
 input[type=checkbox],input[type=radio]{accent-color:var(--accent);width:15px;height:15px;margin:0}
 .note{font-size:12.5px;color:var(--muted);margin:0}
 .btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:6px;padding:6px 12px;font:500 13px var(--f-body);cursor:pointer;white-space:nowrap}
@@ -253,7 +256,7 @@ const I18N={
   l_u:'Registered plots',l_req:'Requested plots',l_free:'Land auctions',l_part:'Plot parts',l_arrest:'Under arrest',l_ned:'Buildings',l_ru:'Land register',l_oz:'Valuation zones',
   l_uk:'Cadastral blocks',l_ugl:'Farmland',l_pch:'Soil contours',l_rst:'Vegetation contours',l_gpr:'Master plan: red lines',l_gpz:'Master plan: zoning',
   l_pdpr:'Detailed plan: red lines',l_pdpz:'Detailed plan: zoning',l_water:'Water supply zone',l_electro:'Power supply zone',l_flood:'Flood extent (Emergencies Ministry)',
-  b_garysh:'Garysh Sapary',b_garysh_s:'EGKN satellite',b_gsat:'Google satellite',b_ghyb:'Google hybrid',b_esri:'Esri World Imagery',b_s2cl:'Sentinel-2 cloudless',b_s2cl_s:'EOX yearly mosaic',b_bing:'Bing satellite',b_ysat:'Yandex satellite',b_ymap:'Yandex map',
+  b_garysh:'Garysh Sapary',b_garysh_s:'EGKN satellite',b_gsat:'Google satellite',b_ghyb:'Google hybrid',b_esri:'Esri World Imagery',b_s2d:'Sentinel-2 on a date',b_s2d_s:'10 m imagery',b_bing:'Bing satellite',b_ysat:'Yandex satellite',b_ymap:'Yandex map',
   b_2gis:'2GIS',b_osm:'OpenStreetMap',b_geocom:'Map of Kazakhstan',b_geocom_s:'EGKN scheme',b_aero:'Kazgeodesy aerial',b_aero_s:'partial',b_none:'No base map',
   copyCoords:'Copy coordinates',copied:'Copied',failed:'Could not copy',egknAt:'Cadastre record',addDistFirst:'Add a district to look up records',openYandex:'Open in Yandex Maps',openGoogle:'Open in Google Maps',
   hTools:'Tools',tPoly:'Plot by points',tRect:'Rectangle by size',tRuler:'Ruler',rWidth:'Width, m',rLength:'Length, m',rAngle:'Rotation, °',
@@ -290,7 +293,7 @@ const I18N={
   l_u:'Зарегистрированные',l_req:'Испрашиваемые',l_free:'Земельный аукцион',l_part:'Части ЗУ',l_arrest:'С арестом',l_ned:'Здания и сооружения',l_ru:'Реестр учёта земель',l_oz:'Оценочные зоны',
   l_uk:'Учётные кварталы',l_ugl:'Сельхозугодья',l_pch:'Почвенные контуры',l_rst:'Геоботанические контуры',l_gpr:'Генплан — красные линии',l_gpz:'Генплан — функциональные зоны',
   l_pdpr:'ПДП — красные линии',l_pdpz:'ПДП — функциональные зоны',l_water:'Зона водоснабжения',l_electro:'Зона электроснабжения',l_flood:'Паводки по опасному уровню (МЧС)',
-  b_garysh:'Гарыш Сапары',b_garysh_s:'спутник ЕГКН',b_gsat:'Google спутник',b_ghyb:'Google гибрид',b_esri:'Esri World Imagery',b_s2cl:'Sentinel-2 без облаков',b_s2cl_s:'EOX, мозаика за год',b_bing:'Bing спутник',b_ysat:'Яндекс спутник',b_ymap:'Яндекс схема',
+  b_garysh:'Гарыш Сапары',b_garysh_s:'спутник ЕГКН',b_gsat:'Google спутник',b_ghyb:'Google гибрид',b_esri:'Esri World Imagery',b_s2d:'Sentinel-2 на дату',b_s2d_s:'снимок 10 м',b_bing:'Bing спутник',b_ysat:'Яндекс спутник',b_ymap:'Яндекс схема',
   b_2gis:'2ГИС',b_osm:'OpenStreetMap',b_geocom:'Карта Казахстана',b_geocom_s:'схема ЕГКН',b_aero:'Аэрофото Казгеодезии',b_aero_s:'частично',b_none:'Без подложки',
   copyCoords:'Скопировать координаты',copied:'Скопировано',failed:'Не удалось скопировать',egknAt:'Сведения ЕГКН',addDistFirst:'Добавьте район, чтобы смотреть сведения',openYandex:'Открыть в Яндекс Картах',openGoogle:'Открыть в Google Maps',
   hTools:'Инструменты',tPoly:'Участок по точкам',tRect:'Прямоугольник по размерам',tRuler:'Линейка',rWidth:'Ширина, м',rLength:'Длина, м',rAngle:'Поворот, °',
@@ -361,7 +364,7 @@ const BASES=[
   {id:'gsat',  make:()=>L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{subdomains:'0123',maxNativeZoom:20,maxZoom:21})},
   {id:'ghyb',  make:()=>L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&hl='+LANG+'&x={x}&y={y}&z={z}',{subdomains:'0123',maxNativeZoom:20,maxZoom:21})},
   {id:'esri',  make:()=>L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21})},
-  {id:'s2cl',  sub:true,make:()=>L.tileLayer('https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-'+(S.s2y||'2024')+'_3857/default/g/{z}/{y}/{x}.jpg',{maxNativeZoom:15,maxZoom:21,attribution:'Sentinel-2 cloudless '+(S.s2y||'2024')+' © EOX IT Services GmbH (contains modified Copernicus Sentinel data)'})},
+  {id:'s2d',   sub:true,make:()=>s2BaseLayer()},
   {id:'bing',  make:()=>new BingLayer('',{maxNativeZoom:19,maxZoom:21})},
   {id:'ysat',  crs:'3395',make:()=>L.tileLayer('https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&lang=ru_RU',{maxNativeZoom:19,maxZoom:21})},
   {id:'ymap',  crs:'3395',make:()=>L.tileLayer('https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang='+(LANG==='ru'?'ru_RU':'en_US'),{maxNativeZoom:19,maxZoom:21})},
@@ -517,7 +520,6 @@ function buildBaseList(){
     const r=document.createElement('input');r.type='radio';r.name='base';r.value=b.id;r.checked=S.base===b.id;r.onchange=()=>setBase(b.id);
     const s=document.createElement('span');s.textContent=t('b_'+b.id);lab.append(r,s);
     if(b.sub){const m=document.createElement('small');m.textContent='· '+t('b_'+b.id+'_s');lab.appendChild(m)}
-    if(b.id==='s2cl'){const y=document.createElement('select');y.className='s2y';['2025','2024','2023','2022','2021','2020','2019','2018','2016'].forEach(v=>{const o=document.createElement('option');o.value=o.textContent=v;y.appendChild(o)});y.value=S.s2y||'2024';y.onclick=e=>e.stopPropagation();y.onchange=()=>{S.s2y=y.value;r.checked=true;setBase('s2cl');save()};lab.appendChild(y)}
     bl.appendChild(lab)});
 }
 
@@ -792,7 +794,7 @@ function applyLang(){
   if(DRAW.mode)hint.textContent=t({poly:'hintPoly',rect:'hintRect',ruler:'hintRuler'}[DRAW.mode]);
   if(selId)select(selId,true);
 }
-document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>{LANG=b.dataset.lang;try{localStorage.setItem('spinstencil-lang',LANG)}catch(e){}applyLang();if(S.base==='ghyb'||S.base==='ymap')setBase(S.base)});
+document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>{LANG=b.dataset.lang;try{localStorage.setItem('spinstencil-lang',LANG)}catch(e){}applyLang();if(S.base==='ghyb'||S.base==='ymap')setBase(S.base);s2BaseAttach()});
 
 // ======================================================================
 // Phone GPS: where am I, plot by walking corners, perimeter track
@@ -1061,7 +1063,7 @@ L.S2Layer=L.GridLayer.extend({
     const lats=corners.map(p=>p.lat),lngs=corners.map(p=>p.lng);
     const tb=[Math.min(...lngs),Math.min(...lats),Math.max(...lngs),Math.max(...lats)];
     const ctx=cv.getContext('2d');
-    for(const it of S2.items){
+    for(const it of (this.options.items||S2.items)){
       const b=it.bbox;if(b[0]>tb[2]||b[2]<tb[0]||b[1]>tb[3]||b[3]<tb[1])continue;
       const zone=it.epsg-32600;
       const c=corners.map(p=>{const u=utm(p.lat,p.lng,zone);return [u.E,u.N]});
@@ -1071,7 +1073,7 @@ L.S2Layer=L.GridLayer.extend({
       const [E0,N0]=c[0],dE1=c[1][0]-E0,dN1=c[1][1]-N0,dE2=c[2][0]-E0,dN2=c[2][1]-N0,det=dE1*dN2-dE2*dN1;
       const M11=ts.x*dN2/det,M12=-ts.x*dE2/det,M21=-ts.y*dN1/det,M22=ts.y*dE1/det;
       const T=[M11*sx,M21*sx,-M12*sy,-M22*sy,M11*(minE-E0)+M12*(maxN-N0),M21*(minE-E0)+M22*(maxN-N0)];
-      const bbox=[minE,minN,maxE,maxN],img=new ImageData(W,H),px=img.data,viz=S2.viz;
+      const bbox=[minE,minN,maxE,maxN],img=new ImageData(W,H),px=img.data,viz=this.options.viz||S2.viz;
       if(viz==='true'){
         const r=await readBand(it.visual,bbox,W,H,[0,1,2]);
         for(let i=0;i<W*H;i++){const R=r[0][i],G=r[1][i],B=r[2][i];if(!(R||G||B))continue;px[i*4]=R;px[i*4+1]=G;px[i*4+2]=B;px[i*4+3]=255}
@@ -1155,22 +1157,25 @@ function s2RenderDates(){
     b.onclick=()=>{S2.sel=g.date;S2.items=g.items;s2save();s2RenderDates();s2Refresh()};box.appendChild(b)});
 }
 function asset(f,k){const a=f.assets[k];if(!a)return null;const rb=(a['raster:bands']||[{}])[0];return {href:a.href,scale:rb.scale??0.0001,offset:rb.offset??0}}
+async function s2Search(date,days,cloud){
+  const d=new Date(date+'T00:00:00Z'),a=new Date(d-days*864e5),b=new Date(+d+(days+1)*864e5-1),B=map.getBounds();
+  const r=await fetch('https://earth-search.aws.element84.com/v1/search',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({collections:['sentinel-2-l2a'],bbox:[B.getWest(),B.getSouth(),B.getEast(),B.getNorth()],datetime:a.toISOString()+'/'+b.toISOString(),
+      query:{'eo:cloud_cover':{lte:cloud}},limit:100})});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const j=await r.json(),groups={};
+  j.features.forEach(f=>{const day=f.properties.datetime.slice(0,10);
+    const it={id:f.id,bbox:f.bbox,epsg:f.properties['proj:epsg']||(32600+(+f.properties['mgrs:utm_zone']||41)),cloud:f.properties['eo:cloud_cover'],
+      green:asset(f,'green'),nir:asset(f,'nir'),red:asset(f,'red'),visual:(f.assets.visual||{}).href};
+    if(!it.green||!it.nir)return;(groups[day]=groups[day]||[]).push(it)});
+  return Object.entries(groups).map(([date,items])=>({date,items,cloud:items.reduce((s,x)=>s+x.cloud,0)/items.length}));
+}
 async function s2Find(){
   S2.date=$s('s2Date').value||S2.date;S2.days=Math.max(0,+$s('s2Days').value||0);S2.cloud=Math.min(100,Math.max(0,+$s('s2Cloud').value||0));s2save();
-  const d=new Date(S2.date+'T00:00:00Z'),a=new Date(d-S2.days*864e5),b=new Date(+d+(S2.days+1)*864e5-1);
-  const B=map.getBounds();
+  const d=new Date(S2.date+'T00:00:00Z');
   s2Status(st('searching'));$s('s2Find').disabled=true;
   try{
-    const r=await fetch('https://earth-search.aws.element84.com/v1/search',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({collections:['sentinel-2-l2a'],bbox:[B.getWest(),B.getSouth(),B.getEast(),B.getNorth()],datetime:a.toISOString()+'/'+b.toISOString(),
-        query:{'eo:cloud_cover':{lte:S2.cloud}},limit:100})});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const j=await r.json(),groups={};
-    j.features.forEach(f=>{const day=f.properties.datetime.slice(0,10);
-      const it={id:f.id,bbox:f.bbox,epsg:f.properties['proj:epsg']||(32600+(+f.properties['mgrs:utm_zone']||41)),cloud:f.properties['eo:cloud_cover'],
-        green:asset(f,'green'),nir:asset(f,'nir'),red:asset(f,'red'),visual:(f.assets.visual||{}).href};
-      if(!it.green||!it.nir)return;(groups[day]=groups[day]||[]).push(it)});
-    s2Dates=Object.entries(groups).map(([date,items])=>({date,items,cloud:items.reduce((s,x)=>s+x.cloud,0)/items.length}))
+    s2Dates=(await s2Search(S2.date,S2.days,S2.cloud))
       .sort((x,y)=>Math.abs(new Date(x.date)-d)-Math.abs(new Date(y.date)-d)||x.cloud-y.cloud);
     $s('s2Find').disabled=false;
     if(!s2Dates.length){s2RenderDates();s2Status(st('none'));return}
@@ -1185,8 +1190,49 @@ $s('s2Thr').oninput=()=>{$s('s2ThrL').textContent=st('thr')+': '+(+$s('s2Thr').v
 $s('s2Thr').onchange=()=>{S2.thr=+$s('s2Thr').value;s2save();s2Refresh()};
 $s('s2Op').oninput=()=>{S2.op=+$s('s2Op').value;if(s2Layer)s2Layer.setOpacity(S2.op)};
 $s('s2Op').onchange=s2save;
-document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setTimeout(s2Render,0)));
+document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{s2Render();s2BaseAttach()},0)));
 s2Render();s2Refresh();
+// ---- Sentinel-2 as a base map: true colour on a chosen date ----
+const S2B_I18N={ru:{near:'± 10 дней от даты',none:'Нет снимков рядом с этой датой (облачность до ',srch:'Ищу снимок…',prev:'Раньше',next:'Позже',cl:'облака'},
+ en:{near:'± 10 days around the date',none:'No scenes near this date (clouds up to ',srch:'Searching…',prev:'Earlier',next:'Later',cl:'clouds'}};
+const sb=k=>S2B_I18N[(typeof LANG!=='undefined'&&LANG==='en')?'en':'ru'][k];
+let S2B={dates:[],i:0,busy:false,msg:''};
+if(!S2.bdate)S2.bdate=S2.date;
+function s2BaseLayer(){const g=S2B.dates[S2B.i];return g?new L.S2Layer({pane:'tilePane',viz:'true',items:g.items}):L.layerGroup()}
+async function s2BaseFind(){
+  S2B.busy=true;S2B.msg=sb('srch');s2BaseInfo();
+  try{
+    const d=new Date(S2.bdate+'T00:00:00Z');
+    const groups=await s2Search(S2.bdate,10,S2.cloud);
+    S2B.dates=groups.sort((x,y)=>x.date<y.date?-1:1);
+    let best=0,bs=1e18;S2B.dates.forEach((g,i)=>{const sc=Math.abs(new Date(g.date)-d)/864e5+g.cloud/20;if(sc<bs){bs=sc;best=i}});
+    S2B.i=best;S2B.msg=S2B.dates.length?'':sb('none')+S2.cloud+'%)';
+  }catch(e){S2B.dates=[];S2B.msg=st('failed')+e.message}
+  S2B.busy=false;s2BaseInfo();
+  if(S.base==='s2d')setBase('s2d');
+}
+function s2BaseInfo(){
+  const box=document.getElementById('s2bInfo');if(!box)return;box.innerHTML='';
+  if(S2B.busy||S2B.msg){box.textContent=S2B.msg;return}
+  const g=S2B.dates[S2B.i];if(!g)return;
+  const mk=(txt,ti,di)=>{const b=document.createElement('button');b.type='button';b.textContent=txt;b.title=ti;b.disabled=!S2B.dates[S2B.i+di];
+    b.onclick=e=>{e.preventDefault();S2B.i+=di;s2BaseInfo();if(S.base==='s2d')setBase('s2d')};return b};
+  const t=document.createElement('span');t.textContent=`${g.date} · ${sb('cl')} ${Math.round(g.cloud)}%`;
+  box.append(mk('‹',sb('prev'),-1),t,mk('›',sb('next'),1));
+}
+function s2BaseAttach(){
+  const r=document.querySelector('input[name=base][value=s2d]');if(!r)return;const lab=r.closest('label');
+  if(lab.querySelector('.s2y'))return;
+  const inp=document.createElement('input');inp.type='date';inp.className='s2y';inp.value=S2.bdate;inp.title=sb('near');
+  inp.onclick=e=>e.stopPropagation();
+  inp.onchange=()=>{if(!inp.value)return;S2.bdate=inp.value;s2save();r.checked=true;S.base='s2d';s2BaseFind()};
+  lab.appendChild(inp);
+  const info=document.createElement('div');info.id='s2bInfo';info.className='s2b';lab.after(info);
+  r.addEventListener('change',()=>{if(!S2B.dates.length&&!S2B.busy)s2BaseFind()});
+  s2BaseInfo();
+}
+s2BaseAttach();
+if(S.base==='s2d')s2BaseFind();
 
 map.on('moveend',save);
 applyLang();setBase(S.base);refreshAll();
