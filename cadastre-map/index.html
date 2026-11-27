@@ -1257,14 +1257,14 @@ const S1_I18N={
 };
 const s1t=k=>(S1_I18N[(typeof LANG!=='undefined'&&LANG==='en')?'en':'ru'][k]);
 const S1K='egkn-s1-v1';
-let S1={on:true,date:'2025-04-20',days:6,viz:'fc',thr:-18,op:.8,sel:null,items:[]};
+let S1={on:true,date:'2025-04-20',days:6,viz:'fc',thr:-21,op:.8,sel:null,items:[]};
 try{Object.assign(S1,JSON.parse(localStorage.getItem(S1K)||'{}'))}catch(e){}
 const s1save=()=>{try{localStorage.setItem(S1K,JSON.stringify(S1))}catch(e){}};
 map.createPane('s1');map.getPane('s1').style.zIndex=305;
 const PC='https://planetarycomputer.microsoft.com/api';
 function s1Url(id){
   let q=`${PC}/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?collection=sentinel-1-rtc&item=${encodeURIComponent(id)}&asset_as_band=true&format=png`;
-  if(S1.viz==='fc')q+='&expression='+encodeURIComponent('vv;vh;vv/vh')+'&rescale=0,0.6&rescale=0,0.1&rescale=0,2';
+  if(S1.viz==='fc')q+='&expression='+encodeURIComponent('vv;vh;vv/vh')+'&rescale=0,0.5&rescale=0,0.1&rescale=0,15';
   else if(S1.viz==='db')q+='&expression='+encodeURIComponent('10*log10(vv)')+'&rescale=-25,0';
   else q+='&expression='+encodeURIComponent(`where(vv<${Math.pow(10,S1.thr/10).toPrecision(4)},1,0)`)+'&colormap='+encodeURIComponent(JSON.stringify({"0":[0,0,0,0],"1":[30,80,255,255]}));
   return q;
