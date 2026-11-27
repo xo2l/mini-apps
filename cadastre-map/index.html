@@ -113,6 +113,11 @@ input[type=number]{width:100%;min-width:0;font:13px var(--f-mono);color:var(--fg
 .gpsctl a.on{color:#2a7fff}
 .gpsnum{background:#00e5ff;color:#012;border:2px solid #fff;border-radius:50%;font:700 11px/16px var(--f-mono);text-align:center;box-shadow:0 0 3px #000}
 .gpsstat{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.s2dates{display:flex;flex-direction:column;gap:4px}
+.s2date{display:flex;justify-content:space-between;gap:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:6px;padding:5px 8px;font:12.5px var(--f-body);cursor:pointer;text-align:left}
+.s2date span{color:var(--muted);font-family:var(--f-mono);font-size:11.5px}
+.s2date:hover{background:var(--hover)}
+.s2date.sel{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
 @media (max-width:640px){
   .panel{top:auto;left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));bottom:max(8px,env(safe-area-inset-bottom,0px));width:auto;max-height:62vh}
   .coords{bottom:auto;top:max(8px,env(safe-area-inset-top,0px));left:56px;right:max(8px,env(safe-area-inset-right,0px));font-size:11px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
@@ -230,6 +235,7 @@ input[type=number]{width:100%;min-width:0;font:13px var(--f-mono);color:var(--fg
   </div>
 </aside>
 
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 const DISTRICTS = [["Акмолинская область",[[1,"Аккольский (01-001)",32642],[2,"Астраханский (01-002)",32642],[3,"Атбасарский (01-003)",32642],[4,"Сандыктауский (01-004)",32642],[5,"Аршалынский (01-005)",32643],[6,"Ерейментауский (01-006)",32643],[7,"Егиндыкольский (01-007)",32642],[8,"Коргалжынский (01-008)",32642],[9,"Буландынский (01-009)",32642],[10,"Целиноградский (01-011)",32642],[11,"Шортандинский (01-012)",32642],[12,"Акколь (01-014)",32642],[257,"Атбасар (01-015)",32642],[13,"Ерейментау (01-016)",32643],[14,"Макинск (01-017)",32642],[15,"Степногорск (01-018)",32642],[16,"Шантобе (01-019)",32642],[17,"Зерендинский (01-160)",32642],[18,"Бурабайский (01-171)",32642],[19,"Биржан Сал (01-172)",32642],[20,"Заозерный (01-173)",32642],[21,"Кокшетау (01-174)",32642],[22,"Степняк (01-176)",32642],[23,"Щучинск (01-177)",32642],[24,"Жаркаинский (01-275)",32642],[25,"Есильский (01-277)",32642],[26,"Жаксынский (01-278)",32642],[27,"Державинск (01-283)",32642],[28,"Есиль (01-284)",32642],[29,"Красногорский (01-285)",32642],[272,"Косшы (01-332)",32642]]],["Актюбинская область",[[30,"Алгинский (02-022)",32640],[31,"Байганинский (02-023)",32640],[32,"Айтекебийский (02-024)",32641],[33,"Иргизский (02-025)",32641],[34,"Мугалжарский (02-027)",32640],[35,"Каргалинский (02-028)",32640],[36,"Мартукский (02-029)",32640],[37,"Темирский (02-031)",32640],[38,"Уилский (02-032)",32640],[39,"Хобдинский (02-033)",32640],[40,"Хромтауский (02-034)",32640],[41,"Шалкарский (02-035)",32640],[42,"Актобе (02-036)",32640],[43,"Алга (02-037)",32640],[44,"Кандыагаш (02-038)",32640],[45,"Темир (02-039)",32640],[46,"Хромтау (02-040)",32640],[47,"Шалкар (02-041)",32640],[48,"Эмба (02-042)",32640]]],["Алматинская область",[[242,"Балхашский (03-043)",32643],[49,"Енбекшиказахский (03-044)",32644],[50,"Жамбылский (03-045)",32643],[51,"Илийский (03-046)",32643],[52,"Карасайский (03-047)",32643],[53,"Райымбекский (03-050)",32644],[54,"Талгарский (03-051)",32643],[55,"Уйгурский (03-052)",32644],[56,"Есик (03-054)",32643],[57,"Қонаев (03-055)",32643],[243,"Каскелен (03-056)",32643],[58,"Талгар (03-057)",32643],[262,"Кегенский (03-323)",32644],[364,"Алатау (03-341)",32643]]],["Атырауская область",[[258,"Жылыойский (04-059)",32639],[73,"Индерский (04-060)",32639],[74,"Исатайский (04-061)",32639],[75,"Кызылкогинский (04-062)",32639],[76,"Курмангазинский (04-063)",32639],[77,"Макатский (04-064)",32639],[78,"Махамбетский (04-065)",32639],[79,"Атырау (04-066)",32639]]],["Восточно-Казахстанская область",[[80,"Глубоковский (05-068)",32644],[81,"Зайсанский (05-069)",32645],[82,"Алтай (05-070)",32645],[83,"Катон-Карагайский (05-071)",32645],[84,"Курчумский (05-072)",32645],[85,"Тарбагатайский (05-078)",32644],[86,"Уланский (05-079)",32644],[87,"Шемонаихинский (05-080)",32644],[88,"Зайсан (05-081)",32645],[89,"Алтай (05-082)",32645],[90,"Риддер (05-083)",32644],[91,"Серебрянск (05-084)",32644],[92,"Усть-Каменогорск (05-085)",32644],[255,"Шемонаиха (05-086)",32644],[266,"Самар (05-334)",32644],[321,"Үлкен Нарын (05-337)",32645],[322,"Марқакөл (05-338)",32645]]],["Жамбылская область",[[103,"Байзакский (06-087)",32642],[104,"Жамбылский (06-088)",32642],[105,"Жуалынский (06-089)",32642],[106,"Кордайский (06-090)",32643],[107,"им.Т.Рыскулова (06-091)",32643],[108,"Меркенский (06-092)",32643],[109,"Мойынкумский (06-093)",32643],[110,"Сарысуский (06-094)",32642],[111,"Таласский (06-095)",32642],[112,"Шуский район (06-096)",32643],[113,"Тараз (06-097)",32642],[114,"Жанатас (06-098)",32642],[115,"Каратау (06-099)",32642],[116,"г. Шу (06-100)",32643]]],["Западно-Казахстанская область",[[117,"Бурлинский (08-114)",32639],[118,"Жангалинский (08-115)",32639],[119,"Жанибекский (08-116)",32639],[120,"Бәйтерек (08-118)",32639],[121,"Казталовский (08-119)",32639],[122,"Каратобинский (08-120)",32639],[123,"Сырымский (08-122)",32639],[124,"Таскалинский (08-124)",32639],[125,"Теректинский (08-125)",32639],[126,"Бокейординский (08-126)",32639],[127,"Акжаикский (08-127)",32639],[128,"Чингирлауский (08-128)",32639],[129,"Аксай (08-129)",32639],[130,"Уральск (08-130)",32639],[131,"Чапаев (08-131)",32639]]],["Карагандинская область",[[132,"Актогайский (09-102)",32643],[135,"Шетский (09-107)",32643],[136,"Балхаш (09-108)",32643],[139,"Приозерск (09-111)",32643],[141,"Каркаралинский (09-133)",32643],[142,"Абайский (09-134)",32643],[143,"Нуринский (09-136)",32642],[144,"Осакаровский (09-137)",32643],[145,"Бухар-Жырауский (09-140)",32643],[146,"Абай (09-141)",32643],[147,"Караганда (09-142)",32643],[148,"Каркаралинск (09-143)",32643],[149,"Сарань (09-144)",32643],[150,"Темиртау (09-145)",32643],[151,"Шахтинск (09-146)",32643]]],["Кызылординская область",[[152,"Аральский (10-147)",32641],[153,"Жалагашский (10-148)",32641],[154,"Жанакорганский (10-149)",32642],[155,"Казалинский (10-150)",32641],[156,"Кармакчинский (10-151)",32641],[157,"Сырдарьинский (10-153)",32641],[158,"Шиелийский (10-154)",32642],[159,"Казалинск (10-155)",32641],[160,"Кызылорда (10-156)",32641]]],["Костанайская область",[[161,"Алтынсаринский (12-178)",32641],[162,"Житикаринский (12-179)",32641],[163,"Камыстинский (12-180)",32641],[164,"Карасуский (12-181)",32641],[165,"Карабалыкский (12-182)",32641],[166,"Костанайский (12-183)",32641],[167,"Узункольский (12-184)",32641],[168,"Мендыкаринский (12-185)",32641],[169,"Наурзумский (12-186)",32641],[170,"Денисовский (12-187)",32641],[171,"Аулиекольский (12-188)",32641],[172,"Беимбета Майлина (12-189)",32641],[173,"Сарыкольский (12-190)",32641],[174,"Федоровский (12-191)",32641],[175,"Житикара (12-192)",32641],[176,"Костанай (12-193)",32641],[177,"Лисаковск (12-194)",32641],[178,"Рудный (12-195)",32641],[179,"Амангельдинский (12-272)",32641],[180,"Жангельдинский (12-276)",32641],[181,"Аркалык (12-282)",32642]]],["Мангистауская область",[[182,"Бейнеуский район (13-196)",32640],[184,"Мангистауский район (13-198)",32639],[185,"Тупкараганский (13-199)",32639],[186,"Актау (13-200)",32639],[187,"Жанаозен (13-201)",32639],[188,"Форт-Шевченко (13-202)",32639],[189,"Мунайлинский район (13-203)",32639]]],["Павлодарская область",[[190,"Актогайский (14-204)",32643],[191,"Баянаульский (14-205)",32643],[192,"Железинский (14-206)",32643],[193,"Иртышский (14-207)",32643],[194,"Тереңкөл (14-208)",32643],[195,"Аққулы (14-209)",32644],[196,"Майский (14-210)",32643],[197,"Павлодарский (14-211)",32643],[198,"Успенский (14-212)",32643],[199,"Щербактинский (14-213)",32644],[200,"Аксу (14-215)",32643],[201,"Иртышск (14-216)",32643],[203,"Павлодар (14-218)",32643],[204,"Экибастуз (14-219)",32643]]],["Северо-Казахстанская область",[[205,"Айыртауский (15-157)",32642],[206,"Уалихановский (15-162)",32642],[207,"Тайыншинский (15-164)",32642],[208,"им. Г. Мусрепова (15-165)",32642],[209,"Акжарский (15-167)",32642],[256,"Тайынша (15-175)",32642],[210,"Кызылжарский (15-220)",32642],[211,"им. Магжана Жумабаева (15-221)",32642],[212,"Жамбылский (15-223)",32642],[213,"Есильский (15-224)",32642],[214,"Мамлютский (15-225)",32642],[215,"Шал Акына (15-228)",32642],[216,"Аккаиынский (15-229)",32642],[217,"Тимирязевский (15-231)",32642],[218,"Булаево (15-232)",32642],[219,"Мамлютка (15-233)",32642],[220,"Петропавловск (15-234)",32642],[221,"Сергеевка (15-235)",32642]]],["Туркестанская область",[[222,"Байдибекский (19-286)",32642],[224,"Мактаральский (19-288)",32642],[225,"Казыгуртский (19-289)",32642],[226,"Ордабасынский (19-293)",32642],[227,"Отырарский (19-294)",32642],[228,"Сайрамский (19-295)",32642],[229,"Сарыагашский (19-296)",32642],[230,"Сузакский (19-297)",32642],[231,"Толебийский (19-298)",32642],[232,"Тюлькубасский (19-300)",32642],[233,"Шардаринский (19-301)",32642],[234,"Арыс (19-302)",32642],[235,"Жетысай (19-303)",32642],[236,"Кентау (19-304)",32642],[237,"Ленгер (19-305)",32642],[238,"Сарыагаш (19-306)",32642],[239,"Туркестан (19-307)",32642],[240,"Шардара (19-308)",32642],[268,"Жетысайский (19-325)",32642],[267,"Келесский (19-326)",32642],[269,"Сауран (19-331)",32642]]],["г. Алматы",[[244,"Алмалинский (20-311)",32643],[245,"Ауезовский (20-312)",32643],[246,"Бостандыкский (20-313)",32643],[247,"Жетысуский (20-314)",32643],[248,"Медеуский (20-315)",32643],[249,"Турксибский (20-317)",32643],[250,"Алатауский (20-321)",32643],[251,"Наурызбайский (20-322)",32643]]],["г. Астана",[[252,"Алматы (21-318)",32642],[253,"Сарыарка (21-319)",32642],[254,"Есиль (21-320)",32642],[264,"Байконыр (21-324)",32642],[271,"Нұра (21-335)",32642],[431,"Сарайшық (21-342)",32642]]],["г. Шымкент",[[241,"Абайский (22-327)",32642],[259,"Аль-Фарабийский (22-328)",32642],[260,"Енбекшинский (22-329)",32642],[261,"Каратау (22-330)",32642],[270,"Тұран (22-336)",32642]]],["Область Абай",[[202,"Курчатов (23-217)",32644],[93,"Абайский (23-236)",32644],[94,"Аягозский (23-239)",32644],[95,"Бескарагайский (23-240)",32644],[96,"Бородулихинский (23-241)",32644],[97,"Жарминский (23-243)",32644],[98,"Кокпектинский (23-244)",32644],[99,"Урджарский (23-248)",32644],[100,"Аягоз (23-251)",32644],[101,"Семей (23-252)",32644],[102,"Шар (23-253)",32644],[265,"Ақсуат (23-333)",32644],[329,"Мақаншы (23-339)",32644],[328,"Жаңасемей (23-340)",32644]]],["Область Жетісу",[[59,"Аксуский (24-254)",32644],[60,"Алакольский (24-255)",32644],[61,"Каратальский (24-259)",32643],[62,"Кербулакский (24-260)",32644],[63,"Коксукский (24-261)",32643],[64,"Панфиловский (24-262)",32644],[65,"Саркандский (24-263)",32644],[66,"Ескельдинский (24-264)",32644],[67,"Жаркент (24-266)",32644],[68,"Сарканд (24-267)",32644],[69,"Талдыкорган (24-268)",32644],[70,"Текели (24-269)",32644],[71,"Уштобе (24-270)",32643],[72,"Ушарал (24-271)",32644]]],["Область Ұлытау",[[133,"Жанааркинский (25-104)",32642],[134,"Улытауский (25-106)",32642],[137,"Жезказган (25-109)",32642],[138,"Каражал (25-110)",32642],[140,"Сатпаев (25-112)",32642]]]];
@@ -993,6 +999,189 @@ $g('gDone').onclick=()=>gpsEnd(true);
 $g('gCancel').onclick=()=>gpsEnd(false);
 document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setTimeout(gpsRender,0)));
 gpsRender();
+
+// ======================================================================
+// Sentinel-2 imagery (water / NDWI, NDVI, true colour) straight from the
+// open Sentinel-2 L2A archive on AWS, found through the Earth Search STAC API.
+// No account needed: bands are read from Cloud-Optimized GeoTIFFs and the
+// index is computed in the browser.
+// ======================================================================
+const S2_I18N={
+ ru:{h:'Спутник Sentinel-2',show:'Показывать',date:'Дата',days:'± дней',cloud:'Облачность до, %',find:'Найти снимки',
+  searching:'Ищу снимки…',none:'Снимков не нашлось. Увеличьте ± дней или допустимую облачность.',
+  found:n=>`Найдено дат: ${n}. Выберите нужную:`,scenes:(n,c)=>`${n} сц. · облака ${c}%`,
+  viz:'Что показывать',v_water:'Только вода (NDWI)',v_ndwi:'NDWI цветом (как Copernicus)',v_true:'Естественные цвета',v_ndvi:'NDVI — растительность',
+  thr:'Порог воды NDWI',opacity:'Прозрачность',loading:'Загружаю снимок…',
+  cur:(d,n)=>`Показан снимок ${d}, сцен: ${n}`,pick:'Выберите дату снимка, чтобы показать слой.',
+  failed:'Не удалось получить снимки: ',lib:'Библиотека для чтения снимков не загрузилась — проверьте интернет.',
+  copern:'Открыть эту дату в Copernicus Browser',
+  note:'Снимки Sentinel-2 L2A, 10 м на пиксель, из открытого архива на AWS. Вода считается по NDWI = (B3 − B8) / (B3 + B8). Облака и тени от них могут дать ложную «воду».'},
+ en:{h:'Sentinel-2 satellite',show:'Show',date:'Date',days:'± days',cloud:'Clouds up to, %',find:'Find scenes',
+  searching:'Searching…',none:'No scenes found. Widen ± days or allow more clouds.',
+  found:n=>`Dates found: ${n}. Pick one:`,scenes:(n,c)=>`${n} scene(s) · clouds ${c}%`,
+  viz:'What to show',v_water:'Water only (NDWI)',v_ndwi:'NDWI colour ramp (as in Copernicus)',v_true:'True colour',v_ndvi:'NDVI — vegetation',
+  thr:'NDWI water threshold',opacity:'Opacity',loading:'Loading imagery…',
+  cur:(d,n)=>`Showing ${d}, ${n} scene(s)`,pick:'Pick a scene date to show the layer.',
+  failed:'Could not get scenes: ',lib:'The image-reading library did not load. Check the internet connection.',
+  copern:'Open this date in Copernicus Browser',
+  note:'Sentinel-2 L2A, 10 m pixels, from the open archive on AWS. Water is NDWI = (B3 − B8) / (B3 + B8). Clouds and their shadows can show up as false water.'}
+};
+const st=k=>S2_I18N[(typeof LANG!=='undefined'&&LANG==='en')?'en':'ru'][k];
+const S2K='egkn-s2-v1';
+let S2={on:true,date:'2024-04-22',days:3,cloud:30,viz:'water',thr:0.1,op:.75,sel:null,items:[]};
+try{Object.assign(S2,JSON.parse(localStorage.getItem(S2K)||'{}'))}catch(e){}
+const s2save=()=>{try{localStorage.setItem(S2K,JSON.stringify(S2))}catch(e){}};
+map.createPane('s2');map.getPane('s2').style.zIndex=300;
+
+const tiffCache={};
+const getTiff=href=>tiffCache[href]||(tiffCache[href]=GeoTIFF.fromUrl(href,{cacheSize:400}));
+async function readBand(href,bbox,W,H,samples){
+  const tiff=await getTiff(href);
+  return tiff.readRasters({bbox,width:W,height:H,samples,resampleMethod:'bilinear',fillValue:0,interleave:false});
+}
+const lerp=(a,b,t)=>a+(b-a)*t;
+function ramp(stops,v){if(v<=stops[0][0])return stops[0][1];for(let i=1;i<stops.length;i++){if(v<=stops[i][0]){const [v0,c0]=stops[i-1],[v1,c1]=stops[i],t=(v-v0)/(v1-v0);return [lerp(c0[0],c1[0],t),lerp(c0[1],c1[1],t),lerp(c0[2],c1[2],t)]}}return stops[stops.length-1][1]}
+const NDWI_RAMP=[[-0.8,[0,128,0]],[-0.2,[220,240,220]],[0,[255,255,255]],[0.2,[160,190,255]],[0.6,[0,0,204]]];
+const NDVI_RAMP=[[-0.2,[120,80,50]],[0.1,[220,200,150]],[0.3,[170,210,110]],[0.6,[60,150,50]],[0.9,[0,90,20]]];
+
+L.S2Layer=L.GridLayer.extend({
+  options:{pane:'s2',minZoom:8,maxZoom:21,tileSize:256},
+  createTile(coords,done){
+    const ts=this.getTileSize(),cv=L.DomUtil.create('canvas','leaflet-tile');cv.width=ts.x;cv.height=ts.y;
+    this._draw(coords,cv).then(()=>done(null,cv),()=>done(null,cv));
+    return cv;
+  },
+  async _draw(coords,cv){
+    const map=this._map,ts=this.getTileSize(),nw=coords.scaleBy(ts);
+    const ll=(dx,dy)=>map.unproject(nw.add([dx,dy]),coords.z);
+    const corners=[ll(0,0),ll(ts.x,0),ll(0,ts.y),ll(ts.x,ts.y)];
+    const lats=corners.map(p=>p.lat),lngs=corners.map(p=>p.lng);
+    const tb=[Math.min(...lngs),Math.min(...lats),Math.max(...lngs),Math.max(...lats)];
+    const ctx=cv.getContext('2d');
+    for(const it of S2.items){
+      const b=it.bbox;if(b[0]>tb[2]||b[2]<tb[0]||b[1]>tb[3]||b[3]<tb[1])continue;
+      const zone=it.epsg-32600;
+      const c=corners.map(p=>{const u=utm(p.lat,p.lng,zone);return [u.E,u.N]});
+      const Es=c.map(q=>q[0]),Ns=c.map(q=>q[1]);
+      const minE=Math.min(...Es)-5,maxE=Math.max(...Es)+5,minN=Math.min(...Ns)-5,maxN=Math.max(...Ns)+5;
+      const W=Math.round(ts.x*1.1),H=Math.round(ts.y*1.1),sx=(maxE-minE)/W,sy=(maxN-minN)/H;
+      const [E0,N0]=c[0],dE1=c[1][0]-E0,dN1=c[1][1]-N0,dE2=c[2][0]-E0,dN2=c[2][1]-N0,det=dE1*dN2-dE2*dN1;
+      const M11=ts.x*dN2/det,M12=-ts.x*dE2/det,M21=-ts.y*dN1/det,M22=ts.y*dE1/det;
+      const T=[M11*sx,M21*sx,-M12*sy,-M22*sy,M11*(minE-E0)+M12*(maxN-N0),M21*(minE-E0)+M22*(maxN-N0)];
+      const bbox=[minE,minN,maxE,maxN],img=new ImageData(W,H),px=img.data,viz=S2.viz;
+      if(viz==='true'){
+        const r=await readBand(it.visual,bbox,W,H,[0,1,2]);
+        for(let i=0;i<W*H;i++){const R=r[0][i],G=r[1][i],B=r[2][i];if(!(R||G||B))continue;px[i*4]=R;px[i*4+1]=G;px[i*4+2]=B;px[i*4+3]=255}
+      }else{
+        const a=viz==='ndvi'?it.red:it.green;
+        const [A,N]=await Promise.all([readBand(a.href,bbox,W,H),readBand(it.nir.href,bbox,W,H)]);
+        const A0=A[0],N0b=N[0],thr=S2.thr;
+        for(let i=0;i<W*H;i++){
+          const da=A0[i],dn=N0b[i];if(!da||!dn)continue;
+          const ra=da*a.scale+a.offset,rn=dn*it.nir.scale+it.nir.offset;
+          if(ra<=0.002||rn<=0.002)continue; // edge of a scene or no data
+          const s=ra+rn;
+          const v=viz==='ndvi'?(rn-ra)/s:(ra-rn)/s;
+          let col;
+          if(viz==='water'){if(v<thr)continue;const t=Math.min(1,(v-thr)/0.4);col=[lerp(80,0,t),lerp(170,60,t),255]}
+          else col=ramp(viz==='ndvi'?NDVI_RAMP:NDWI_RAMP,v);
+          px[i*4]=col[0];px[i*4+1]=col[1];px[i*4+2]=col[2];px[i*4+3]=255;
+        }
+      }
+      const off=document.createElement('canvas');off.width=W;off.height=H;off.getContext('2d').putImageData(img,0,0);
+      ctx.save();ctx.setTransform(...T);ctx.drawImage(off,0,0);ctx.restore();
+    }
+  }
+});
+let s2Layer=null;
+function s2Refresh(){
+  if(s2Layer){map.removeLayer(s2Layer);s2Layer=null}
+  if(S2.on&&S2.items.length&&window.GeoTIFF){s2Layer=new L.S2Layer({opacity:S2.op});s2Layer.addTo(map)}
+  s2Status();
+}
+
+// panel section, placed right after the base map section
+const s2Sec=document.createElement('section');s2Sec.id='s2Sec';
+document.querySelector('#paneLayers section').after(s2Sec);
+s2Sec.innerHTML=`<h2 id="s2H"></h2>
+<div class="lyr"><input type="checkbox" id="s2On"><label for="s2On" id="s2OnL"></label><span></span></div>
+<div class="nums">
+  <label><span id="s2DateL"></span><input type="date" id="s2Date"></label>
+  <label><span id="s2DaysL"></span><input type="number" id="s2Days" min="0" max="30"></label>
+  <label><span id="s2CloudL"></span><input type="number" id="s2Cloud" min="0" max="100"></label>
+</div>
+<button type="button" class="btn" id="s2Find"></button>
+<p class="note" id="s2Msg"></p>
+<div id="s2Dates" class="s2dates"></div>
+<label class="note" for="s2Viz" id="s2VizL"></label>
+<select id="s2Viz"></select>
+<label class="note" for="s2Thr" id="s2ThrL"></label>
+<input type="range" id="s2Thr" min="-0.3" max="0.5" step="0.02" style="accent-color:var(--accent)">
+<label class="note" for="s2Op" id="s2OpL"></label>
+<input type="range" id="s2Op" min="0" max="1" step="0.05" style="accent-color:var(--accent)">
+<div class="links" id="s2Links"></div>
+<p class="note" id="s2Note"></p>`;
+const $s=id=>document.getElementById(id);
+let s2Dates=[];
+
+function s2Status(msg){
+  const el=$s('s2Msg');
+  if(msg!==undefined){el.textContent=msg;return}
+  if(!window.GeoTIFF){el.textContent=st('lib');return}
+  el.textContent=S2.items.length?st('cur')(S2.sel,S2.items.length):st('pick');
+  const d=S2.sel;
+  $s('s2Links').innerHTML=d?`<a target="_blank" rel="noopener" href="https://browser.dataspace.copernicus.eu/?zoom=${map.getZoom()}&lat=${map.getCenter().lat.toFixed(5)}&lng=${map.getCenter().lng.toFixed(5)}&themeId=DEFAULT-THEME&datasetId=S2_L2A_CDAS&fromTime=${d}T00%3A00%3A00.000Z&toTime=${d}T23%3A59%3A59.999Z&layerId=1_TRUE_COLOR">${st('copern')}</a>`:'';
+}
+function s2Render(){
+  $s('s2H').textContent=st('h');$s('s2OnL').textContent=st('show');$s('s2DateL').textContent=st('date');$s('s2DaysL').textContent=st('days');
+  $s('s2CloudL').textContent=st('cloud');$s('s2Find').textContent=st('find');$s('s2VizL').textContent=st('viz');$s('s2ThrL').textContent=st('thr')+': '+S2.thr.toFixed(2);
+  $s('s2OpL').textContent=st('opacity');$s('s2Note').textContent=st('note');
+  $s('s2On').checked=S2.on;$s('s2Date').value=S2.date;$s('s2Days').value=S2.days;$s('s2Cloud').value=S2.cloud;$s('s2Thr').value=S2.thr;$s('s2Op').value=S2.op;
+  const v=$s('s2Viz');v.innerHTML='';['water','ndwi','true','ndvi'].forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=st('v_'+k);v.appendChild(o)});v.value=S2.viz;
+  $s('s2Thr').hidden=$s('s2ThrL').hidden=S2.viz!=='water';
+  s2RenderDates();s2Status();
+}
+function s2RenderDates(){
+  const box=$s('s2Dates');box.innerHTML='';
+  if(!s2Dates.length)return;
+  const p=document.createElement('p');p.className='note';p.textContent=st('found')(s2Dates.length);box.appendChild(p);
+  s2Dates.forEach(g=>{const b=document.createElement('button');b.type='button';b.className='s2date'+(g.date===S2.sel?' sel':'');
+    b.innerHTML=`<b>${g.date}</b><span>${st('scenes')(g.items.length,Math.round(g.cloud))}</span>`;
+    b.onclick=()=>{S2.sel=g.date;S2.items=g.items;s2save();s2RenderDates();s2Refresh()};box.appendChild(b)});
+}
+function asset(f,k){const a=f.assets[k];if(!a)return null;const rb=(a['raster:bands']||[{}])[0];return {href:a.href,scale:rb.scale??0.0001,offset:rb.offset??0}}
+async function s2Find(){
+  S2.date=$s('s2Date').value||S2.date;S2.days=Math.max(0,+$s('s2Days').value||0);S2.cloud=Math.min(100,Math.max(0,+$s('s2Cloud').value||0));s2save();
+  const d=new Date(S2.date+'T00:00:00Z'),a=new Date(d-S2.days*864e5),b=new Date(+d+(S2.days+1)*864e5-1);
+  const B=map.getBounds();
+  s2Status(st('searching'));$s('s2Find').disabled=true;
+  try{
+    const r=await fetch('https://earth-search.aws.element84.com/v1/search',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({collections:['sentinel-2-l2a'],bbox:[B.getWest(),B.getSouth(),B.getEast(),B.getNorth()],datetime:a.toISOString()+'/'+b.toISOString(),
+        query:{'eo:cloud_cover':{lte:S2.cloud}},limit:100})});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json(),groups={};
+    j.features.forEach(f=>{const day=f.properties.datetime.slice(0,10);
+      const it={id:f.id,bbox:f.bbox,epsg:f.properties['proj:epsg']||(32600+(+f.properties['mgrs:utm_zone']||41)),cloud:f.properties['eo:cloud_cover'],
+        green:asset(f,'green'),nir:asset(f,'nir'),red:asset(f,'red'),visual:(f.assets.visual||{}).href};
+      if(!it.green||!it.nir)return;(groups[day]=groups[day]||[]).push(it)});
+    s2Dates=Object.entries(groups).map(([date,items])=>({date,items,cloud:items.reduce((s,x)=>s+x.cloud,0)/items.length}))
+      .sort((x,y)=>Math.abs(new Date(x.date)-d)-Math.abs(new Date(y.date)-d)||x.cloud-y.cloud);
+    $s('s2Find').disabled=false;
+    if(!s2Dates.length){s2RenderDates();s2Status(st('none'));return}
+    if(!S2.sel||!s2Dates.some(g=>g.date===S2.sel)){S2.sel=s2Dates[0].date;S2.items=s2Dates[0].items;s2save()}
+    s2RenderDates();s2Refresh();
+  }catch(e){$s('s2Find').disabled=false;s2Status(st('failed')+e.message)}
+}
+$s('s2Find').onclick=s2Find;
+$s('s2On').onchange=()=>{S2.on=$s('s2On').checked;s2save();s2Refresh()};
+$s('s2Viz').onchange=()=>{S2.viz=$s('s2Viz').value;s2save();s2Render();s2Refresh()};
+$s('s2Thr').oninput=()=>{$s('s2ThrL').textContent=st('thr')+': '+(+$s('s2Thr').value).toFixed(2)};
+$s('s2Thr').onchange=()=>{S2.thr=+$s('s2Thr').value;s2save();s2Refresh()};
+$s('s2Op').oninput=()=>{S2.op=+$s('s2Op').value;if(s2Layer)s2Layer.setOpacity(S2.op)};
+$s('s2Op').onchange=s2save;
+document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setTimeout(s2Render,0)));
+s2Render();s2Refresh();
 
 map.on('moveend',save);
 applyLang();setBase(S.base);refreshAll();

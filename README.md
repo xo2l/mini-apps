@@ -47,6 +47,8 @@ Draw & measure tab:
 
 How it works: the cadastre's district layers only render in the district's own UTM zone and come back empty in Web Mercator. The app requests each tile in UTM and warps it onto the map tile, so the layers line up with any base map. Area is computed on the WGS 84 ellipsoid through UTM with the zone scale correction.
 
+Sentinel-2 satellite (Layers tab): find scenes by date and cloud cover and show water (NDWI), an NDWI colour ramp, NDVI or true colour at 10 m. Scenes come from the open Sentinel-2 L2A archive on AWS through the Earth Search catalogue, so no account is needed; the index is computed in the browser. Useful for checking flood extent on a given day, for example the April 2024 floods.
+
 Limitations: the official plan for an application is made in the local coordinate system (MSK) by a licensed land surveyor; this app gives WGS 84 and UTM. The cadastre does not allow its records inside other pages, so they open in a new tab. The maps need the internet.
 
 ---
@@ -57,4 +59,4 @@ Limitations: the official plan for an application is made in the local coordinat
 
 **Поворотный трафарет** превращает картинку в диск с пронумерованными окнами и основу с метками. Ставишь диск на метку, закрашиваешь окна с этим номером, поворачиваешь дальше. Рисунок проявляется только в конце. Для сплошных крупных форм используй режим «Контур»: на одном радиусе окна не могут занимать весь круг, иначе трафарет развалится.
 
-**Кадастровая карта РК** показывает слои ЕГКН (зарегистрированные и испрашиваемые участки, аукционы, учётные кварталы, генплан, обследование земель и др.) поверх любой подложки: «Гарыш Сапары», Google, Яндекс, Bing, Esri, 2ГИС, OSM. Клик по карте даёт координаты и ссылку на сведения ЕГКН об участке. На вкладке «Рисование и площадь» можно нарисовать участок или поставить прямоугольник нужного размера и получить площадь (м², га, сотки), периметр, длины сторон, дирекционные углы, каталог координат и схему для печати. Есть экспорт в KML, GeoJSON и CSV. Координаты даются в WGS 84 и UTM; официальную схему в МСК делает землеустроитель.
+**Кадастровая карта РК** показывает слои ЕГКН (зарегистрированные и испрашиваемые участки, аукционы, учётные кварталы, генплан, обследование земель и др.) поверх любой подложки: «Гарыш Сапары», Google, Яндекс, Bing, Esri, 2ГИС, OSM. Клик по карте даёт координаты и ссылку на сведения ЕГКН об участке. На вкладке «Рисование и площадь» можно нарисовать участок или поставить прямоугольник нужного размера и получить площадь (м², га, сотки), периметр, длины сторон, дирекционные углы, каталог координат и схему для печати. Есть экспорт в KML, GeoJSON и CSV. На вкладке «Слои» есть снимки Sentinel-2 за любую дату: вода по индексу NDWI, NDVI или естественные цвета, 10 м на пиксель, без регистрации — удобно смотреть, где стояла вода в паводок. Координаты даются в WGS 84 и UTM; официальную схему в МСК делает землеустроитель.
