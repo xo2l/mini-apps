@@ -1238,6 +1238,111 @@ function s2BaseAttach(){
 }
 s2BaseAttach();
 if(S.base==='s2d')s2BaseFind();
+// ======================================================================
+// Sentinel-1 radar (sees through clouds and at night). Scenes come from
+// Microsoft Planetary Computer: radiometrically terrain-corrected backscatter
+// (sentinel-1-rtc), rendered into map tiles by its open tiler.
+// ======================================================================
+const S1_I18N={
+ ru:{h:'Радар Sentinel-1',show:'Показывать',find:'Найти снимки',none:'Радарных снимков не нашлось. Увеличьте ± дней.',
+  found:n=>`Найдено дат: ${n}. Выберите нужную:`,scenes:(n,o)=>`${n} сц. · ${o}`,asc:'восх. орбита',desc:'нисх. орбита',
+  viz:'Что показывать',v_fc:'Цветной VV/VH',v_db:'VV, дБ — вода чёрная',v_water:'Только вода (VV ниже порога)',
+  thr:'Порог воды VV, дБ',cur:(d,n)=>`Показан снимок ${d}, сцен: ${n}`,pick:'Выберите дату снимка, чтобы показать слой.',
+  note:'Радар видит сквозь облака и ночью. Спокойная вода отражает сигнал в сторону — на снимке она тёмная. Снимки с 2014 г., повтор 6–12 дней. Над Костанаем в 2022–2024 гг. Sentinel-1 не снимал: тогда одного спутника не хватало на всю съёмку.'},
+ en:{h:'Sentinel-1 radar',show:'Show',find:'Find scenes',none:'No radar scenes found. Widen ± days.',
+  found:n=>`Dates found: ${n}. Pick one:`,scenes:(n,o)=>`${n} scene(s) · ${o}`,asc:'ascending',desc:'descending',
+  viz:'What to show',v_fc:'Colour VV/VH',v_db:'VV, dB — water is black',v_water:'Water only (VV below threshold)',
+  thr:'VV water threshold, dB',cur:(d,n)=>`Showing ${d}, ${n} scene(s)`,pick:'Pick a scene date to show the layer.',
+  note:'Radar sees through clouds and at night. Calm water reflects the signal away, so it looks dark. Archive from 2014, revisit 6–12 days. Sentinel-1 did not image Kostanay in 2022–2024, when only one satellite was flying.'}
+};
+const s1t=k=>(S1_I18N[(typeof LANG!=='undefined'&&LANG==='en')?'en':'ru'][k]);
+const S1K='egkn-s1-v1';
+let S1={on:true,date:'2025-04-20',days:6,viz:'fc',thr:-18,op:.8,sel:null,items:[]};
+try{Object.assign(S1,JSON.parse(localStorage.getItem(S1K)||'{}'))}catch(e){}
+const s1save=()=>{try{localStorage.setItem(S1K,JSON.stringify(S1))}catch(e){}};
+map.createPane('s1');map.getPane('s1').style.zIndex=305;
+const PC='https://planetarycomputer.microsoft.com/api';
+function s1Url(id){
+  let q=`${PC}/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?collection=sentinel-1-rtc&item=${encodeURIComponent(id)}&asset_as_band=true&format=png`;
+  if(S1.viz==='fc')q+='&expression='+encodeURIComponent('vv;vh;vv/vh')+'&rescale=0,0.6&rescale=0,0.1&rescale=0,2';
+  else if(S1.viz==='db')q+='&expression='+encodeURIComponent('10*log10(vv)')+'&rescale=-25,0';
+  else q+='&expression='+encodeURIComponent(`where(vv<${Math.pow(10,S1.thr/10).toPrecision(4)},1,0)`)+'&colormap='+encodeURIComponent(JSON.stringify({"0":[0,0,0,0],"1":[30,80,255,255]}));
+  return q;
+}
+let s1Layer=null;
+function s1Refresh(){
+  if(s1Layer){map.removeLayer(s1Layer);s1Layer=null}
+  if(S1.on&&S1.items.length){
+    s1Layer=L.layerGroup(S1.items.map(it=>L.tileLayer(s1Url(it.id),{pane:'s1',opacity:S1.op,minZoom:7,maxNativeZoom:16,maxZoom:21,
+      bounds:L.latLngBounds([it.bbox[1],it.bbox[0]],[it.bbox[3],it.bbox[2]]),attribution:'Sentinel-1 RTC · Microsoft Planetary Computer'}))).addTo(map);
+  }
+  s1Status();
+}
+const s1Sec=document.createElement('section');s1Sec.id='s1Sec';
+document.getElementById('s2Sec').after(s1Sec);
+s1Sec.innerHTML=`<h2 id="s1H"></h2>
+<div class="lyr"><input type="checkbox" id="s1On"><label for="s1On" id="s1OnL"></label><span></span></div>
+<div class="nums">
+  <label><span id="s1DateL"></span><input type="date" id="s1Date"></label>
+  <label><span id="s1DaysL"></span><input type="number" id="s1Days" min="0" max="60"></label>
+</div>
+<button type="button" class="btn" id="s1Find"></button>
+<p class="note" id="s1Msg"></p>
+<div id="s1Dates" class="s2dates"></div>
+<label class="note" for="s1Viz" id="s1VizL"></label>
+<select id="s1Viz"></select>
+<label class="note" for="s1Thr" id="s1ThrL"></label>
+<input type="range" id="s1Thr" min="-26" max="-10" step="0.5" style="accent-color:var(--accent)">
+<label class="note" for="s1Op" id="s1OpL"></label>
+<input type="range" id="s1Op" min="0" max="1" step="0.05" style="accent-color:var(--accent)">
+<p class="note" id="s1Note"></p>`;
+let s1Dates=[];
+function s1Status(msg){
+  const el=$s('s1Msg');if(msg!==undefined){el.textContent=msg;return}
+  el.textContent=S1.items.length?s1t('cur')(S1.sel,S1.items.length):s1t('pick');
+}
+function s1Render(){
+  $s('s1H').textContent=s1t('h');$s('s1OnL').textContent=s1t('show');$s('s1DateL').textContent=st('date');$s('s1DaysL').textContent=st('days');
+  $s('s1Find').textContent=s1t('find');$s('s1VizL').textContent=s1t('viz');$s('s1ThrL').textContent=s1t('thr')+': '+S1.thr;
+  $s('s1OpL').textContent=st('opacity');$s('s1Note').textContent=s1t('note');
+  $s('s1On').checked=S1.on;$s('s1Date').value=S1.date;$s('s1Days').value=S1.days;$s('s1Thr').value=S1.thr;$s('s1Op').value=S1.op;
+  const v=$s('s1Viz');v.innerHTML='';['fc','db','water'].forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=s1t('v_'+k);v.appendChild(o)});v.value=S1.viz;
+  $s('s1Thr').hidden=$s('s1ThrL').hidden=S1.viz!=='water';
+  s1RenderDates();s1Status();
+}
+function s1RenderDates(){
+  const box=$s('s1Dates');box.innerHTML='';if(!s1Dates.length)return;
+  const p=document.createElement('p');p.className='note';p.textContent=s1t('found')(s1Dates.length);box.appendChild(p);
+  s1Dates.forEach(g=>{const b=document.createElement('button');b.type='button';b.className='s2date'+(g.date===S1.sel?' sel':'');
+    b.innerHTML=`<b>${g.date}</b><span>${s1t('scenes')(g.items.length,s1t(g.orbit==='ascending'?'asc':'desc'))}</span>`;
+    b.onclick=()=>{S1.sel=g.date;S1.items=g.items;s1save();s1RenderDates();s1Refresh()};box.appendChild(b)});
+}
+async function s1Find(){
+  S1.date=$s('s1Date').value||S1.date;S1.days=Math.max(0,+$s('s1Days').value||0);s1save();
+  const d=new Date(S1.date+'T00:00:00Z'),a=new Date(d-S1.days*864e5),b=new Date(+d+(S1.days+1)*864e5-1),B=map.getBounds();
+  s1Status(st('searching'));$s('s1Find').disabled=true;
+  try{
+    const r=await fetch(PC+'/stac/v1/search',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({collections:['sentinel-1-rtc'],bbox:[B.getWest(),B.getSouth(),B.getEast(),B.getNorth()],datetime:a.toISOString()+'/'+b.toISOString(),limit:100})});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json(),groups={};
+    j.features.forEach(f=>{const day=f.properties.datetime.slice(0,10);(groups[day]=groups[day]||{date:day,orbit:f.properties['sat:orbit_state'],items:[]}).items.push({id:f.id,bbox:f.bbox})});
+    s1Dates=Object.values(groups).sort((x,y)=>Math.abs(new Date(x.date)-d)-Math.abs(new Date(y.date)-d));
+    $s('s1Find').disabled=false;
+    if(!s1Dates.length){s1RenderDates();s1Status(s1t('none'));return}
+    if(!S1.sel||!s1Dates.some(g=>g.date===S1.sel)){S1.sel=s1Dates[0].date;S1.items=s1Dates[0].items;s1save()}
+    s1RenderDates();s1Refresh();
+  }catch(e){$s('s1Find').disabled=false;s1Status(st('failed')+e.message)}
+}
+$s('s1Find').onclick=s1Find;
+$s('s1On').onchange=()=>{S1.on=$s('s1On').checked;s1save();s1Refresh()};
+$s('s1Viz').onchange=()=>{S1.viz=$s('s1Viz').value;s1save();s1Render();s1Refresh()};
+$s('s1Thr').oninput=()=>{$s('s1ThrL').textContent=s1t('thr')+': '+$s('s1Thr').value};
+$s('s1Thr').onchange=()=>{S1.thr=+$s('s1Thr').value;s1save();s1Refresh()};
+$s('s1Op').oninput=()=>{S1.op=+$s('s1Op').value;if(s1Layer)s1Layer.eachLayer(l=>l.setOpacity(S1.op))};
+$s('s1Op').onchange=s1save;
+document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setTimeout(s1Render,0)));
+s1Render();s1Refresh();
 
 map.on('moveend',save);
 // ---- deselect a plot; declutter handles and labels when zoomed out ----
