@@ -258,7 +258,7 @@ const I18N={
   l_u:'Registered plots',l_req:'Requested plots',l_free:'Land auctions',l_part:'Plot parts',l_arrest:'Under arrest',l_ned:'Buildings',l_ru:'Land register',l_oz:'Valuation zones',
   l_uk:'Cadastral blocks',l_ugl:'Farmland',l_pch:'Soil contours',l_rst:'Vegetation contours',l_gpr:'Master plan: red lines',l_gpz:'Master plan: zoning',
   l_pdpr:'Detailed plan: red lines',l_pdpz:'Detailed plan: zoning',l_water:'Water supply zone',l_electro:'Power supply zone',l_flood:'Flood extent (Emergencies Ministry)',
-  b_garysh:'Garysh Sapary',b_garysh_s:'EGKN satellite',b_gsat:'Google satellite',b_ghyb:'Google hybrid',b_esri:'Esri World Imagery',b_s2d:'Sentinel-2 on a date',b_s2d_s:'10 m imagery',b_bing:'Bing satellite',b_ysat:'Yandex satellite',b_ymap:'Yandex map',
+  b_garysh:'Garysh Sapary',b_garysh_s:'EGKN satellite',b_gsat:'Google satellite',b_ghyb:'Google hybrid',b_esri:'Esri World Imagery',b_s2d:'Sentinel-2 on a date',b_s2d_s:'10 m imagery',b_s1d:'Sentinel-1 radar on a date',b_s1d_s:'through clouds',b_bing:'Bing satellite',b_ysat:'Yandex satellite',b_ymap:'Yandex map',
   b_2gis:'2GIS',b_osm:'OpenStreetMap',b_geocom:'Map of Kazakhstan',b_geocom_s:'EGKN scheme',b_aero:'Kazgeodesy aerial',b_aero_s:'partial',b_none:'No base map',
   copyCoords:'Copy coordinates',copied:'Copied',failed:'Could not copy',egknAt:'Cadastre record',addDistFirst:'Add a district to look up records',openYandex:'Open in Yandex Maps',openGoogle:'Open in Google Maps',
   hTools:'Tools',tPoly:'Plot by points',tRect:'Rectangle by size',tRuler:'Ruler',rWidth:'Width, m',rLength:'Length, m',rAngle:'Rotation, °',
@@ -295,7 +295,7 @@ const I18N={
   l_u:'Зарегистрированные',l_req:'Испрашиваемые',l_free:'Земельный аукцион',l_part:'Части ЗУ',l_arrest:'С арестом',l_ned:'Здания и сооружения',l_ru:'Реестр учёта земель',l_oz:'Оценочные зоны',
   l_uk:'Учётные кварталы',l_ugl:'Сельхозугодья',l_pch:'Почвенные контуры',l_rst:'Геоботанические контуры',l_gpr:'Генплан — красные линии',l_gpz:'Генплан — функциональные зоны',
   l_pdpr:'ПДП — красные линии',l_pdpz:'ПДП — функциональные зоны',l_water:'Зона водоснабжения',l_electro:'Зона электроснабжения',l_flood:'Паводки по опасному уровню (МЧС)',
-  b_garysh:'Гарыш Сапары',b_garysh_s:'спутник ЕГКН',b_gsat:'Google спутник',b_ghyb:'Google гибрид',b_esri:'Esri World Imagery',b_s2d:'Sentinel-2 на дату',b_s2d_s:'снимок 10 м',b_bing:'Bing спутник',b_ysat:'Яндекс спутник',b_ymap:'Яндекс схема',
+  b_garysh:'Гарыш Сапары',b_garysh_s:'спутник ЕГКН',b_gsat:'Google спутник',b_ghyb:'Google гибрид',b_esri:'Esri World Imagery',b_s2d:'Sentinel-2 на дату',b_s2d_s:'снимок 10 м',b_s1d:'Радар Sentinel-1 на дату',b_s1d_s:'сквозь облака',b_bing:'Bing спутник',b_ysat:'Яндекс спутник',b_ymap:'Яндекс схема',
   b_2gis:'2ГИС',b_osm:'OpenStreetMap',b_geocom:'Карта Казахстана',b_geocom_s:'схема ЕГКН',b_aero:'Аэрофото Казгеодезии',b_aero_s:'частично',b_none:'Без подложки',
   copyCoords:'Скопировать координаты',copied:'Скопировано',failed:'Не удалось скопировать',egknAt:'Сведения ЕГКН',addDistFirst:'Добавьте район, чтобы смотреть сведения',openYandex:'Открыть в Яндекс Картах',openGoogle:'Открыть в Google Maps',
   hTools:'Инструменты',tPoly:'Участок по точкам',tRect:'Прямоугольник по размерам',tRuler:'Линейка',rWidth:'Ширина, м',rLength:'Длина, м',rAngle:'Поворот, °',
@@ -367,6 +367,7 @@ const BASES=[
   {id:'ghyb',  make:()=>L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&hl='+LANG+'&x={x}&y={y}&z={z}',{subdomains:'0123',maxNativeZoom:20,maxZoom:21})},
   {id:'esri',  make:()=>L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21})},
   {id:'s2d',   sub:true,make:()=>s2BaseLayer()},
+  {id:'s1d',   sub:true,make:()=>s1BaseLayer()},
   {id:'bing',  make:()=>new BingLayer('',{maxNativeZoom:19,maxZoom:21})},
   {id:'ysat',  crs:'3395',make:()=>L.tileLayer('https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&lang=ru_RU',{maxNativeZoom:19,maxZoom:21})},
   {id:'ymap',  crs:'3395',make:()=>L.tileLayer('https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang='+(LANG==='ru'?'ru_RU':'en_US'),{maxNativeZoom:19,maxZoom:21})},
@@ -1343,6 +1344,50 @@ $s('s1Op').oninput=()=>{S1.op=+$s('s1Op').value;if(s1Layer)s1Layer.eachLayer(l=>
 $s('s1Op').onchange=s1save;
 document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setTimeout(s1Render,0)));
 s1Render();s1Refresh();
+// ---- Sentinel-1 as a base map: colour VV/VH on a chosen date ----
+const S1B_I18N={ru:{none:'Нет радарных снимков ± 12 дней от даты. Над Костанаем в 2022–2024 гг. Sentinel-1 не снимал.'},en:{none:'No radar scenes within ± 12 days. Sentinel-1 did not image Kostanay in 2022–2024.'}};
+let S1B={dates:[],i:0,busy:false,msg:''};
+if(!S1.bdate)S1.bdate=S1.date;
+function s1BaseLayer(){const g=S1B.dates[S1B.i];if(!g)return L.layerGroup();const v=S1.viz;S1.viz='fc';
+  const lg=L.layerGroup(g.items.map(it=>L.tileLayer(s1Url(it.id),{minZoom:7,maxNativeZoom:16,maxZoom:21,bounds:L.latLngBounds([it.bbox[1],it.bbox[0]],[it.bbox[3],it.bbox[2]]),attribution:'Sentinel-1 RTC · Microsoft Planetary Computer'})));S1.viz=v;return lg}
+async function s1BaseFind(){
+  S1B.busy=true;S1B.msg=st('searching');s1BaseInfo();
+  try{
+    const d=new Date(S1.bdate+'T00:00:00Z'),a=new Date(d-12*864e5),b=new Date(+d+13*864e5-1),B=map.getBounds();
+    const r=await fetch(PC+'/stac/v1/search',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({collections:['sentinel-1-rtc'],bbox:[B.getWest(),B.getSouth(),B.getEast(),B.getNorth()],datetime:a.toISOString()+'/'+b.toISOString(),limit:100})});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json(),groups={};
+    j.features.forEach(f=>{const day=f.properties.datetime.slice(0,10);(groups[day]=groups[day]||{date:day,orbit:f.properties['sat:orbit_state'],items:[]}).items.push({id:f.id,bbox:f.bbox})});
+    S1B.dates=Object.values(groups).sort((x,y)=>x.date<y.date?-1:1);
+    let best=0,bs=1e18;S1B.dates.forEach((g,i)=>{const sc=Math.abs(new Date(g.date)-d);if(sc<bs){bs=sc;best=i}});S1B.i=best;
+    S1B.msg=S1B.dates.length?'':S1B_I18N[(typeof LANG!=='undefined'&&LANG==='en')?'en':'ru'].none;
+  }catch(e){S1B.dates=[];S1B.msg=st('failed')+e.message}
+  S1B.busy=false;s1BaseInfo();if(S.base==='s1d')setBase('s1d');
+}
+function s1BaseInfo(){
+  const box=document.getElementById('s1bInfo');if(!box)return;box.innerHTML='';
+  if(S1B.busy||S1B.msg){box.textContent=S1B.msg;return}
+  const g=S1B.dates[S1B.i];if(!g)return;
+  const mk=(txt,ti,di)=>{const b=document.createElement('button');b.type='button';b.textContent=txt;b.title=ti;b.disabled=!S1B.dates[S1B.i+di];
+    b.onclick=e=>{e.preventDefault();S1B.i+=di;s1BaseInfo();if(S.base==='s1d')setBase('s1d')};return b};
+  const t=document.createElement('span');t.textContent=`${g.date} · ${s1t(g.orbit==='ascending'?'asc':'desc')}`;
+  box.append(mk('‹',sb('prev'),-1),t,mk('›',sb('next'),1));
+}
+function s1BaseAttach(){
+  const r=document.querySelector('input[name=base][value=s1d]');if(!r)return;const lab=r.closest('label');
+  if(lab.querySelector('.s2y'))return;
+  const inp=document.createElement('input');inp.type='date';inp.className='s2y';inp.value=S1.bdate;
+  inp.onclick=e=>e.stopPropagation();
+  inp.onchange=()=>{if(!inp.value)return;S1.bdate=inp.value;s1save();r.checked=true;S.base='s1d';s1BaseFind()};
+  lab.appendChild(inp);
+  const info=document.createElement('div');info.id='s1bInfo';info.className='s2b';lab.after(info);
+  r.addEventListener('change',()=>{if(!S1B.dates.length&&!S1B.busy)s1BaseFind()});
+  s1BaseInfo();
+}
+s1BaseAttach();
+document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setTimeout(s1BaseAttach,0)));
+if(S.base==='s1d')s1BaseFind();
 
 map.on('moveend',save);
 // ---- deselect a plot; declutter handles and labels when zoomed out ----
@@ -1356,7 +1401,7 @@ function shapeLbl(){Object.values(shapeLayers).forEach(l=>{if(shapePx(l)<50)l.cl
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!DRAW.mode&&selId&&!/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))select(null)});
   map.on('zoomend',()=>{shapeLbl();if(selId)drawHandles()});
 })();
-applyLang();s2BaseAttach();setBase(S.base);refreshAll();
+applyLang();s2BaseAttach();s1BaseAttach();setBase(S.base);refreshAll();
 try{if(localStorage.getItem('egkn-tab')==='d')showTab(true)}catch(e){}
 </script>
 </body>
