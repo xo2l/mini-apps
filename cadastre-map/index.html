@@ -1028,7 +1028,7 @@ const S2_I18N={
 };
 const st=k=>S2_I18N[(typeof LANG!=='undefined'&&LANG==='en')?'en':'ru'][k];
 const S2K='egkn-s2-v1';
-let S2={on:true,date:'2024-04-22',days:3,cloud:30,viz:'water',thr:0.1,op:.75,sel:null,items:[]};
+let S2={on:true,date:'2024-04-22',days:3,cloud:30,viz:'water',thr:0,op:.75,sel:null,items:[]};
 try{Object.assign(S2,JSON.parse(localStorage.getItem(S2K)||'{}'))}catch(e){}
 const s2save=()=>{try{localStorage.setItem(S2K,JSON.stringify(S2))}catch(e){}};
 map.createPane('s2');map.getPane('s2').style.zIndex=300;
@@ -1037,7 +1037,7 @@ const tiffCache={};
 const getTiff=href=>tiffCache[href]||(tiffCache[href]=GeoTIFF.fromUrl(href,{cacheSize:400}));
 async function readBand(href,bbox,W,H,samples){
   const tiff=await getTiff(href);
-  return tiff.readRasters({bbox,width:W,height:H,samples,resampleMethod:'bilinear',fillValue:0,interleave:false});
+  return tiff.readRasters({bbox,width:W,height:H,samples,resampleMethod:'nearest',fillValue:0,interleave:false});
 }
 const lerp=(a,b,t)=>a+(b-a)*t;
 function ramp(stops,v){if(v<=stops[0][0])return stops[0][1];for(let i=1;i<stops.length;i++){if(v<=stops[i][0]){const [v0,c0]=stops[i-1],[v1,c1]=stops[i],t=(v-v0)/(v1-v0);return [lerp(c0[0],c1[0],t),lerp(c0[1],c1[1],t),lerp(c0[2],c1[2],t)]}}return stops[stops.length-1][1]}
@@ -1079,12 +1079,12 @@ L.S2Layer=L.GridLayer.extend({
         for(let i=0;i<W*H;i++){
           const da=A0[i],dn=N0b[i];if(!da||!dn)continue;
           const ra=da*a.scale+a.offset,rn=dn*it.nir.scale+it.nir.offset;
-          if(ra<=0.002||rn<=0.002)continue; // edge of a scene or no data
-          const s=ra+rn;
+          const s=ra+rn;if(Math.abs(s)<1e-6)continue;
           const v=viz==='ndvi'?(rn-ra)/s:(ra-rn)/s;
           let col;
-          if(viz==='water'){if(v<thr)continue;const t=Math.min(1,(v-thr)/0.4);col=[lerp(80,0,t),lerp(170,60,t),255]}
-          else col=ramp(viz==='ndvi'?NDVI_RAMP:NDWI_RAMP,v);
+          if(viz==='water'){if(v<thr)continue;const t=Math.min(1,Math.sqrt(Math.sqrt(Math.max(v,0))));col=[255*(1-t),255*(1-t),255-51*t]}
+          else if(viz==='ndwi'){if(v<0){const t=Math.min(1,-v);col=[255*(1-t),255-127*t,255*(1-t)]}else{const t=Math.min(1,Math.sqrt(Math.sqrt(v)));col=[255*(1-t),255*(1-t),255-51*t]}}
+          else col=ramp(NDVI_RAMP,v);
           px[i*4]=col[0];px[i*4+1]=col[1];px[i*4+2]=col[2];px[i*4+3]=255;
         }
       }
