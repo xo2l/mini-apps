@@ -61,6 +61,8 @@ select,input[type=text]{width:100%;min-width:0;font:13px var(--f-body);color:var
 .lyr .legend img{display:block;max-width:100%}
 .base{display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer}
 .base small{color:var(--muted)}
+.desel{float:right;border:0;background:none;color:var(--muted);font-size:15px;line-height:1;cursor:pointer;padding:0 2px}
+.desel:hover{color:var(--fg)}
 .base .s2y{width:auto;flex:0 0 auto;margin-left:auto;font:inherit;font-size:12px;padding:0 2px}
 .s2b{display:flex;align-items:center;gap:6px;margin:2px 0 6px 24px;font-size:12px;color:var(--muted)}
 .s2b button{font:inherit;padding:0 7px;border:1px solid var(--line,#ccc);border-radius:4px;background:none;cursor:pointer}
@@ -535,6 +537,7 @@ function gfiUrl(lat,lon,dist){
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 map.on('click',e=>{
   if(DRAW.mode)return;
+  if(selId){select(null);return}
   const {lat,lng}=e.latlng,u=utm(lat,lng);
   const links=S.dists.map(id=>`<a href="${gfiUrl(lat,lng,id)}" target="_blank" rel="noopener">${t('egknAt')} — ${esc(DIST[id]?.name||id)}</a>`).join('');
   const txt=`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
@@ -659,6 +662,7 @@ function renderShapes(){
     poly.on('mousedown',e=>{if(DRAW.mode||selId!==s.id)return;startMove(s,e)});
     shapeLayers[s.id]=poly;
   });
+  shapeLbl();
   const list=document.getElementById('shapeList');list.innerHTML='';
   if(!shapes.length){const p=document.createElement('p');p.className='note';p.textContent=t('empty');list.appendChild(p)}
   shapes.forEach(s=>{const m=measure(s.ll);const r=document.createElement('div');r.className='shape'+(s.id===selId?' sel':'');r.tabIndex=0;
@@ -673,6 +677,7 @@ function startMove(s,e){
 }
 function drawHandles(){
   editGroup.clearLayers();const s=shapes.find(x=>x.id===selId);if(!s)return;
+  const px=shapeLayers[s.id]?shapePx(shapeLayers[s.id]):999;if(px<60)return;const lbl=px>=160;
   s.ll.forEach((p,i)=>{
     const mk=L.marker(p,{draggable:true,pane:'draw',icon:L.divIcon({className:'',html:'<div class="vtx"></div>',iconSize:[0,0]})}).addTo(editGroup);
     mk.on('drag',ev=>{const q=ev.target.getLatLng();s.ll[i]=[q.lat,q.lng];shapeLayers[s.id].setLatLngs(s.ll)});
@@ -680,7 +685,7 @@ function drawHandles(){
     mk.on('contextmenu',ev=>{L.DomEvent.stop(ev);if(s.ll.length>3){s.ll.splice(i,1);saveShapes();renderShapes();select(s.id,true)}});
   });
   const zone=zoneOf(s.ll[0]);
-  s.ll.forEach((p,i)=>{const q=s.ll[(i+1)%s.ll.length];const mid=[(p[0]+q[0])/2,(p[1]+q[1])/2];
+  if(lbl)s.ll.forEach((p,i)=>{const q=s.ll[(i+1)%s.ll.length];const mid=[(p[0]+q[0])/2,(p[1]+q[1])/2];
     const a=utm(p[0],p[1],zone),b=utm(q[0],q[1],zone),len=Math.hypot(b.E-a.E,b.N-a.N)/kScale((a.E+b.E)/2);
     const mk=L.marker(mid,{draggable:true,pane:'draw',icon:L.divIcon({className:'mid',html:`<i></i>${fmt(len,1)} ${t('m')}`,iconSize:null,iconAnchor:[5,5]})}).addTo(editGroup);
     mk.on('dragstart',()=>{s.ll.splice(i+1,0,mid)});
@@ -1235,7 +1240,18 @@ s2BaseAttach();
 if(S.base==='s2d')s2BaseFind();
 
 map.on('moveend',save);
-applyLang();setBase(S.base);refreshAll();
+// ---- deselect a plot; declutter handles and labels when zoomed out ----
+function shapePx(l){const b=l.getBounds();return map.latLngToContainerPoint(b.getNorthWest()).distanceTo(map.latLngToContainerPoint(b.getSouthEast()))}
+function shapeLbl(){Object.values(shapeLayers).forEach(l=>{if(shapePx(l)<50)l.closeTooltip();else if(!l.isTooltipOpen())l.openTooltip()})}
+(function(){
+  const h=document.querySelector('#shapeInfo h2'),b=document.createElement('button');b.type='button';b.id='sDesel';b.className='desel';b.textContent='✕';
+  const tt=()=>(typeof LANG!=='undefined'&&LANG==='en')?'Deselect (Esc)':'Снять выделение (Esc)';
+  b.onmouseenter=()=>{b.title=tt();b.setAttribute('aria-label',tt())};b.title=tt();b.setAttribute('aria-label',tt());
+  b.onclick=()=>select(null);h.before(b);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!DRAW.mode&&selId&&!/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))select(null)});
+  map.on('zoomend',()=>{shapeLbl();if(selId)drawHandles()});
+})();
+applyLang();s2BaseAttach();setBase(S.base);refreshAll();
 try{if(localStorage.getItem('egkn-tab')==='d')showTab(true)}catch(e){}
 </script>
 </body>
