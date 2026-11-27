@@ -61,6 +61,8 @@ select,input[type=text]{width:100%;min-width:0;font:13px var(--f-body);color:var
 .lyr .legend img{display:block;max-width:100%}
 .base{display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer}
 .base small{color:var(--muted)}
+.wleg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:4px 0}
+.wleg i{flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,#ffcccc,#0000ff)}
 .desel{float:right;border:0;background:none;color:var(--muted);font-size:15px;line-height:1;cursor:pointer;padding:0 2px}
 .desel:hover{color:var(--fg)}
 .base .s2y{width:auto;flex:0 0 auto;margin-left:auto;font:inherit;font-size:12px;padding:0 2px}
@@ -538,6 +540,7 @@ function gfiUrl(lat,lon,dist){
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 map.on('click',e=>{
   if(DRAW.mode)return;
+  if(VS.pick)return;
   if(selId){select(null);return}
   const {lat,lng}=e.latlng,u=utm(lat,lng);
   const links=S.dists.map(id=>`<a href="${gfiUrl(lat,lng,id)}" target="_blank" rel="noopener">${t('egknAt')} — ${esc(DIST[id]?.name||id)}</a>`).join('');
@@ -1388,6 +1391,128 @@ function s1BaseAttach(){
 s1BaseAttach();
 document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setTimeout(s1BaseAttach,0)));
 if(S.base==='s1d')s1BaseFind();
+// ======================================================================
+// JRC Global Surface Water: how often each 30 m pixel was water, 1984–2021
+// ======================================================================
+const W_I18N={
+ ru:{h:'Вода по годам (JRC)',show:'Показывать',note:'Как часто пиксель 30 м был покрыт водой по всем снимкам Landsat за 1984–2021 гг. Розовый — вода бывала редко (паводки), синий — вода почти всегда. Набор Еврокомиссии (JRC Global Surface Water).',lo:'редко',hi:'всегда'},
+ en:{h:'Water over the years (JRC)',show:'Show',note:'How often each 30 m pixel was under water in all Landsat images from 1984 to 2021. Pink means water was rare (floods), blue means almost always. European Commission dataset (JRC Global Surface Water).',lo:'rarely',hi:'always'}};
+const wt=k=>W_I18N[(typeof LANG!=='undefined'&&LANG==='en')?'en':'ru'][k];
+const WK='egkn-jrc-v1';let WJ={on:false,op:.8};try{Object.assign(WJ,JSON.parse(localStorage.getItem(WK)||'{}'))}catch(e){}
+const wsave=()=>{try{localStorage.setItem(WK,JSON.stringify(WJ))}catch(e){}};
+map.createPane('jrc');map.getPane('jrc').style.zIndex=310;
+let jrcLayer=null;
+function jrcRefresh(){if(jrcLayer){map.removeLayer(jrcLayer);jrcLayer=null}
+  if(WJ.on)jrcLayer=L.tileLayer('https://storage.googleapis.com/global-surface-water/tiles2021/occurrence/{z}/{x}/{y}.png',{pane:'jrc',opacity:WJ.op,maxNativeZoom:13,maxZoom:21,attribution:'Water occurrence 1984–2021 © EC JRC / Google'}).addTo(map)}
+const wSec=document.createElement('section');wSec.id='jrcSec';document.getElementById('s1Sec').after(wSec);
+wSec.innerHTML=`<h2 id="wH"></h2>
+<div class="lyr"><input type="checkbox" id="wOn"><label for="wOn" id="wOnL"></label><span></span></div>
+<div class="wleg"><span id="wLo"></span><i></i><span id="wHi"></span></div>
+<label class="note" for="wOp" id="wOpL"></label>
+<input type="range" id="wOp" min="0" max="1" step="0.05" style="accent-color:var(--accent)">
+<p class="note" id="wNote"></p>`;
+function wRender(){$s('wH').textContent=wt('h');$s('wOnL').textContent=wt('show');$s('wLo').textContent=wt('lo');$s('wHi').textContent=wt('hi');
+  $s('wOpL').textContent=st('opacity');$s('wNote').textContent=wt('note');$s('wOn').checked=WJ.on;$s('wOp').value=WJ.op}
+$s('wOn').onchange=()=>{WJ.on=$s('wOn').checked;wsave();jrcRefresh()};
+$s('wOp').oninput=()=>{WJ.op=+$s('wOp').value;if(jrcLayer)jrcLayer.setOpacity(WJ.op)};$s('wOp').onchange=wsave;
+document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setTimeout(wRender,0)));
+wRender();jrcRefresh();
+
+// ======================================================================
+// Viewshed: where an object of a given height can be seen from a point.
+// Elevation is the Copernicus DEM GLO-30 (a surface model, so forests and
+// large buildings count), read from Microsoft Planetary Computer.
+// ======================================================================
+const VS_I18N={
+ ru:{h:'Зона видимости',obs:'Глаза над землёй, м',tgt:'Высота объекта, м',rad:'Радиус, км',pick:'Поставить точку обзора',clear:'Убрать',
+  hint:'Кликните на карте — туда встанет точка, откуда смотрим.',load:'Загружаю рельеф…',calc:'Считаю видимость…',
+  done:(a,g)=>`Готово. Видно ${a} км² в круге. Высота земли в точке обзора ${g} м.`,fail:'Не удалось посчитать: ',op:'Прозрачность',
+  note:'Зелёным закрашено, где верх объекта заданной высоты виден из точки обзора. Рельеф — модель Copernicus DEM, ячейка ~30 м; лес и крупные здания в ней есть, отдельные дома и деревья — нет. Учтены кривизна Земли и рефракция. Результат приблизительный: проверяйте на месте.'},
+ en:{h:'Viewshed',obs:'Eye above ground, m',tgt:'Object height, m',rad:'Radius, km',pick:'Place the viewpoint',clear:'Clear',
+  hint:'Click the map to place the point you look from.',load:'Loading elevation…',calc:'Computing visibility…',
+  done:(a,g)=>`Done. ${a} km² visible inside the circle. Ground at the viewpoint is ${g} m.`,fail:'Could not compute: ',op:'Opacity',
+  note:'Green marks where the top of an object of the given height can be seen from the viewpoint. Elevation is the Copernicus DEM with ~30 m cells; forests and large buildings are in it, single houses and trees are not. Earth curvature and refraction are included. The result is approximate, so check on site.'}};
+const vt=k=>VS_I18N[(typeof LANG!=='undefined'&&LANG==='en')?'en':'ru'][k];
+const VSK='egkn-vs-v1';let VS={h:1.7,t:10,r:10,op:.6,pick:false,pt:null};
+try{Object.assign(VS,JSON.parse(localStorage.getItem(VSK)||'{}'),{pick:false})}catch(e){}
+const vsave=()=>{try{const {pick,...o}=VS;localStorage.setItem(VSK,JSON.stringify(o))}catch(e){}};
+const vsGroup=L.layerGroup().addTo(map);
+const vSec=document.createElement('section');vSec.id='vsSec';document.querySelector('#paneDraw section').after(vSec);
+vSec.innerHTML=`<h2 id="vsHd"></h2>
+<div class="nums">
+  <label><span id="vsHL"></span><input type="number" id="vsH" min="0" max="500" step="0.5"></label>
+  <label><span id="vsTL"></span><input type="number" id="vsT" min="0" max="300" step="0.5"></label>
+  <label><span id="vsRL"></span><input type="number" id="vsR" min="1" max="30" step="1"></label>
+</div>
+<div class="tools" id="vsTools"><button type="button" class="tool" id="vsPick" aria-pressed="false"></button><button type="button" class="tool" id="vsClear"></button></div>
+<p class="note" id="vsMsg"></p>
+<label class="note" for="vsOp" id="vsOpL"></label>
+<input type="range" id="vsOp" min="0" max="1" step="0.05" style="accent-color:var(--accent)">
+<p class="note" id="vsNote"></p>`;
+function vsRender(){$s('vsHd').textContent=vt('h');$s('vsHL').textContent=vt('obs');$s('vsTL').textContent=vt('tgt');$s('vsRL').textContent=vt('rad');
+  $s('vsPick').textContent=vt('pick');$s('vsClear').textContent=vt('clear');$s('vsOpL').textContent=vt('op');$s('vsNote').textContent=vt('note');
+  $s('vsH').value=VS.h;$s('vsT').value=VS.t;$s('vsR').value=VS.r;$s('vsOp').value=VS.op;$s('vsPick').setAttribute('aria-pressed',String(VS.pick))}
+const vsMsg=m=>{$s('vsMsg').textContent=m};
+function vsReadForm(){VS.h=Math.max(0,+$s('vsH').value||0);VS.t=Math.max(0,+$s('vsT').value||0);VS.r=Math.min(30,Math.max(1,+$s('vsR').value||10));vsave()}
+$s('vsPick').onclick=()=>{VS.pick=!VS.pick;$s('vsPick').setAttribute('aria-pressed',String(VS.pick));map.getContainer().classList.toggle('drawing',VS.pick);vsMsg(VS.pick?vt('hint'):'')};
+$s('vsClear').onclick=()=>{vsGroup.clearLayers();VS.pt=null;vsave();vsMsg('')};
+$s('vsOp').oninput=()=>{VS.op=+$s('vsOp').value;vsGroup.eachLayer(l=>l.setOpacity&&l instanceof L.ImageOverlay&&l.setOpacity(VS.op))};$s('vsOp').onchange=vsave;
+['vsH','vsT','vsR'].forEach(id=>$s(id).onchange=()=>{vsReadForm();if(VS.pt)viewshed(VS.pt[0],VS.pt[1])});
+map.on('click',e=>{if(!VS.pick)return;VS.pick=false;$s('vsPick').setAttribute('aria-pressed','false');map.getContainer().classList.remove('drawing');viewshed(e.latlng.lat,e.latlng.lng)});
+document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setTimeout(vsRender,0)));
+
+let demTok=null;
+async function demToken(){if(!demTok||Date.parse(demTok['msft:expiry'])-Date.now()<120000)demTok=await fetch(PC+'/sas/v1/token/cop-dem-glo-30').then(r=>r.json());return demTok.token}
+function demHref(la,lo){return `https://elevationeuwest.blob.core.windows.net/copernicus-dem/COP30_hh/Copernicus_DSM_COG_10_${la>=0?'N':'S'}${String(Math.abs(la)).padStart(2,'0')}_00_${lo>=0?'E':'W'}${String(Math.abs(lo)).padStart(3,'0')}_00_DEM.tif`}
+// read a DEM grid [s,w,n,e] at dlat×dlon, mosaicking the 1° tiles it touches
+async function demGrid(s,w,n,e,dlat,dlon){
+  const H=Math.round((n-s)/dlat),W=Math.round((e-w)/dlon),Z=new Float32Array(W*H).fill(NaN),tok=await demToken();
+  const jobs=[];
+  for(let la=Math.floor(s);la<=Math.floor(n-1e-9);la++)for(let lo=Math.floor(w);lo<=Math.floor(e-1e-9);lo++)jobs.push((async()=>{
+    const ts=Math.max(s,la),tn=Math.min(n,la+1),tw=Math.max(w,lo),te=Math.min(e,lo+1);
+    const r0=Math.round((n-tn)/dlat),r1=Math.round((n-ts)/dlat),c0=Math.round((tw-w)/dlon),c1=Math.round((te-w)/dlon);if(r1<=r0||c1<=c0)return;
+    let tif;try{tif=await GeoTIFF.fromUrl(demHref(la,lo)+'?'+tok)}catch(err){return}   // no tile = sea/void
+    const im=await tif.getImage(),[ox,oy]=im.getOrigin(),[rx,ry]=im.getResolution();
+    const win=[Math.floor((w+c0*dlon-ox)/rx),Math.floor((oy-(n-r0*dlat))/-ry),Math.ceil((w+c1*dlon-ox)/rx),Math.ceil((oy-(n-r1*dlat))/-ry)];
+    win[0]=Math.max(0,win[0]);win[1]=Math.max(0,win[1]);win[2]=Math.min(im.getWidth(),win[2]);win[3]=Math.min(im.getHeight(),win[3]);
+    const d=(await im.readRasters({window:win,width:c1-c0,height:r1-r0,resampleMethod:'bilinear'}))[0];
+    for(let r=0;r<r1-r0;r++)for(let c=0;c<c1-c0;c++)Z[(r0+r)*W+c0+c]=d[r*(c1-c0)+c];
+  })());
+  await Promise.all(jobs);return {Z,W,H};
+}
+async function viewshed(lat,lng){
+  vsReadForm();VS.pt=[lat,lng];vsave();vsGroup.clearLayers();
+  L.circleMarker([lat,lng],{radius:6,color:'#fff',weight:2,fillColor:'#0a7',fillOpacity:1}).addTo(vsGroup);
+  if(!window.GeoTIFF){vsMsg(st('lib'));return}
+  const R=VS.r*1000,cos=Math.cos(lat*Math.PI/180),dlat=1/3600,al=Math.abs(lat),dlon=(al<50?1:al<60?1.5:al<70?2:3)/3600;
+  const hl=R/111320,hw=R/(111320*cos),s=lat-hl,n=lat+hl,w=lng-hw,e=lng+hw;
+  vsMsg(vt('load'));
+  try{
+    const {Z,W,H}=await demGrid(s,w,n,e,dlat,dlon);vsMsg(vt('calc'));await new Promise(r=>setTimeout(r,20));
+    const ci=Math.round((n-lat)/dlat),cj=Math.round((lng-w)/dlon),my=dlat*111320,mx=dlon*111320*cos;
+    let g=Infinity;for(let di=-1;di<=1;di++)for(let dj=-1;dj<=1;dj++){const v=Z[(ci+di)*W+cj+dj];if(v<g)g=v}   // ground: lowest nearby cell, so a building in the DSM is not counted twice
+    if(!isFinite(g))throw new Error('no elevation here');
+    const eye=g+VS.h,tg=VS.t,K=(1-0.13)/(2*6371000),vis=new Uint8Array(W*H),step=Math.min(mx,my)*0.5;
+    const nR=Math.ceil(2*Math.PI*R/Math.min(mx,my)*1.2);
+    for(let k=0;k<nR;k++){const a=2*Math.PI*k/nR,sx=Math.sin(a),sy=Math.cos(a);let mxs=-Infinity;
+      for(let d=step;d<=R;d+=step){const j=Math.round(cj+d*sx/mx),i=Math.round(ci-d*sy/my);if(i<0||j<0||i>=H||j>=W)break;
+        const z=Z[i*W+j];if(z!==z)continue;const c=d*d*K,sl=(z-c-eye)/d;
+        if((z-c+tg-eye)/d>=mxs)vis[i*W+j]=1;if(sl>mxs)mxs=sl}}
+    // draw on a Mercator-spaced canvas so the overlay lines up with the map
+    const merc=la=>Math.log(Math.tan(Math.PI/4+la*Math.PI/360)),ms=merc(s),mn=merc(n),OH=H,cv=document.createElement('canvas');cv.width=W;cv.height=OH;
+    const ctx=cv.getContext('2d'),img=ctx.createImageData(W,OH),px=img.data;let cnt=0;
+    for(let r=0;r<OH;r++){const la=360/Math.PI*(Math.atan(Math.exp(mn-(mn-ms)*(r+.5)/OH))-Math.PI/4),i=Math.min(H-1,Math.max(0,Math.floor((n-la)/dlat)));
+      for(let j=0;j<W;j++){const dy=(i-ci)*my,dx=(j-cj)*mx;if(dx*dx+dy*dy>R*R)continue;const o=(r*W+j)*4;
+        if(vis[i*W+j]){px[o]=20;px[o+1]=200;px[o+2]=90;px[o+3]=255}else{px[o]=0;px[o+1]=0;px[o+2]=0;px[o+3]=70}}}
+    for(let i=0;i<H;i++)for(let j=0;j<W;j++)if(vis[i*W+j])cnt++;
+    ctx.putImageData(img,0,0);
+    L.imageOverlay(cv.toDataURL(),[[s,w],[n,e]],{opacity:VS.op,interactive:false}).addTo(vsGroup);
+    L.circle([lat,lng],{radius:R,color:'#0a7',weight:1,fill:false,interactive:false}).addTo(vsGroup);
+    vsGroup.eachLayer(l=>l instanceof L.CircleMarker&&l.bringToFront());
+    vsMsg(vt('done')((cnt*mx*my/1e6).toFixed(1).replace('.',(typeof LANG!=='undefined'&&LANG==='en')?'.':','),Math.round(g)));
+  }catch(err){vsMsg(vt('fail')+err.message)}
+}
+vsRender();
 
 map.on('moveend',save);
 // ---- deselect a plot; declutter handles and labels when zoomed out ----
