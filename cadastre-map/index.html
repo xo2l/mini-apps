@@ -1497,7 +1497,7 @@ async function viewshed(lat,lng){
     for(let k=0;k<nR;k++){const a=2*Math.PI*k/nR,sx=Math.sin(a),sy=Math.cos(a);let mxs=-Infinity;
       for(let d=step;d<=R;d+=step){const j=Math.round(cj+d*sx/mx),i=Math.round(ci-d*sy/my);if(i<0||j<0||i>=H||j>=W)break;
         const z=Z[i*W+j];if(z!==z)continue;const c=d*d*K,sl=(z-c-eye)/d;
-        if((z-c+tg-eye)/d>=mxs)vis[i*W+j]=1;if(sl>mxs)mxs=sl}}
+        if((z-c+tg-eye)/d>=mxs)vis[i*W+j]=1;if(d>60&&sl>mxs)mxs=sl}}   // the viewpoint's own building (first ~60 m) does not block the view
     // draw on a Mercator-spaced canvas so the overlay lines up with the map
     const merc=la=>Math.log(Math.tan(Math.PI/4+la*Math.PI/360)),ms=merc(s),mn=merc(n),OH=H,cv=document.createElement('canvas');cv.width=W;cv.height=OH;
     const ctx=cv.getContext('2d'),img=ctx.createImageData(W,OH),px=img.data;let cnt=0;
